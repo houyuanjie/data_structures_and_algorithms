@@ -252,7 +252,7 @@ int test_complex_scenarios()
     return 0;
 }
 
-int main(int argc, char *argv[])
+int main()
 {
     printf("=======================================\n");
     printf("       顺序表 (SeqList) 测试程序       \n");
