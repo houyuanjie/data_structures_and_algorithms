@@ -7,11 +7,19 @@ require 'rake/clean'
 # 编译器配置和构建标志
 # ========================================
 
-CC      = 'gcc'                          # C 编译器
-CFLAGS  = '-Wall -Wextra -g -O0 -Ilib'   # 编译选项
-LDFLAGS = ''                             # 链接选项
-AR      = 'ar'                           # 静态库归档工具
-ARFLAGS = 'rcs'                          # 归档标志：r=替换、c=创建、s=创建索引
+# 允许通过环境变量覆盖编译器，提高跨平台兼容性
+CC      = ENV.fetch('CC', 'gcc')
+AR      = ENV.fetch('AR', 'ar')
+
+# 编译选项：启用所有警告、将警告视为错误、使用 C11 标准、
+# 包含调试信息、关闭优化、添加头文件搜索路径
+CFLAGS  = '-Wall -Wextra -Werror -std=c11 -g -O0 -Ilib'
+
+# 链接选项：允许通过环境变量传入额外的链接标志
+LDFLAGS = ENV.fetch('LDFLAGS', '')
+
+# 静态库归档标志：r=替换已有文件、c=创建库、s=创建符号索引
+ARFLAGS = 'rcs'
 
 # ========================================
 # 目录配置
@@ -44,50 +52,11 @@ LIB_A = "#{OUT_DIR}/libdsa.a"
 BINS = BIN_SRCS.pathmap("#{OUT_DIR}/%n")
 
 # ========================================
-# 库构建规则：.c → .o 并打包静态库
+# 辅助函数
 # ========================================
 
-# 为每个库源文件创建独立的对象文件构建任务
-LIB_SRCS.each do |src|
-  obj = src.pathmap("#{OUT_DIR}/%n.o")
-
-  # 文件任务：显式依赖输出目录和源文件
-  # -MMD：生成 Makefile 风格的依赖文件（.d）
-  # -MP：为头文件添加“伪目标”，防止头文件被删除后 make 报错
-  file obj => [OUT_DIR, src] do
-    sh "#{CC} #{CFLAGS} -MMD -MP -c #{src} -o #{obj}"
-  end
-end
-
-# 静态库打包任务：依赖所有对象文件
-file LIB_A => LIB_OBJS do |t|
-  # 使用 ar 打包所有 .o 文件为静态库
-  sh "#{AR} #{ARFLAGS} #{t.name} #{t.prerequisites.join(' ')}"
-end
-
-# ========================================
-# 可执行文件构建规则：编译 + 链接静态库
-# ========================================
-
-# 为每个 bin/*.c 创建可执行文件构建任务
-BIN_SRCS.each do |src|
-  exe = src.pathmap("#{OUT_DIR}/%n")
-  dep = "#{exe}.bin.d"   # 使用 .bin.d 后缀，防止与库对象的 .d 文件同名冲突
-
-  # 文件任务：显式依赖输出目录、源文件和静态库
-  file exe => [OUT_DIR, src, LIB_A] do
-    # 编译并链接（-MMD -MP 生成依赖文件，-MF 指定依赖文件名）
-    # 注意：源文件放在静态库之前，符合链接器符号解析顺序
-    sh "#{CC} #{CFLAGS} -MMD -MP -MF #{dep} #{src} #{LIB_A} #{LDFLAGS} -o #{exe}"
-  end
-end
-
-# ========================================
-# 加载自动生成的依赖文件
-# ========================================
-
-# 辅助函数：解析 gcc -MMD 生成的 .d 文件，并动态为 Rake 任务添加头文件依赖
-# 实现类似 Make 的增量构建能力
+# 解析 gcc -MMD 生成的 .d 依赖文件，并动态为 Rake 任务添加头文件依赖。
+# 实现增量构建能力：当头文件变更时，自动重新编译依赖它的目标文件。
 def load_deps(dep_file, target)
   return unless File.exist?(dep_file)
 
@@ -105,14 +74,70 @@ def load_deps(dep_file, target)
   Rake::Task[target].enhance(existing_deps)
 end
 
+# ========================================
+# 库构建规则：.c → .o 并打包静态库
+# ========================================
+
+# 为每个库源文件创建独立的对象文件构建任务
+LIB_SRCS.each do |src|
+  obj = src.pathmap("#{OUT_DIR}/%n.o")
+  dep_file = obj.ext('d')
+
+  # 文件任务：显式依赖输出目录和源文件
+  # -MMD：生成 Makefile 风格的依赖文件（.d），记录源文件包含的头文件
+  file obj => [OUT_DIR, src] do
+    sh "#{CC} #{CFLAGS} -MMD -c #{src} -o #{obj}"
+    # 编译后立即加载新生成的依赖文件，确保头文件变更能被追踪
+    load_deps(dep_file, obj)
+  end
+end
+
+# 静态库打包任务：依赖所有对象文件
+file LIB_A => LIB_OBJS do |t|
+  # 使用 ar 打包所有 .o 文件为静态库
+  sh "#{AR} #{ARFLAGS} #{t.name} #{t.prerequisites.join(' ')}"
+end
+
+# ========================================
+# 可执行文件构建规则：编译为 .o 再链接静态库
+# ========================================
+
+# 为每个 bin/*.c 创建中间对象文件任务
+BIN_OBJS = BIN_SRCS.pathmap("#{OUT_DIR}/%n.bin.o")
+
+BIN_SRCS.each do |src|
+  obj = src.pathmap("#{OUT_DIR}/%n.bin.o")
+  dep_file = "#{obj}.d"
+
+  file obj => [OUT_DIR, src] do
+    sh "#{CC} #{CFLAGS} -MMD -c #{src} -o #{obj}"
+    # 编译后立即加载新生成的依赖文件
+    load_deps(dep_file, obj)
+  end
+
+  # 为每个 bin/*.c 创建可执行文件构建任务
+  exe = src.pathmap("#{OUT_DIR}/%n")
+  obj = src.pathmap("#{OUT_DIR}/%n.bin.o")
+
+  # 文件任务：依赖输出目录、对象文件和静态库
+  file exe => [OUT_DIR, obj, LIB_A] do
+    # 链接对象文件和静态库
+    sh "#{CC} #{obj} #{LIB_A} #{LDFLAGS} -o #{exe}"
+  end
+end
+
+# ========================================
+# 加载自动生成的依赖文件
+# ========================================
+
 # 为库对象文件注入依赖（out/foo.o 对应 out/foo.d）
 LIB_OBJS.each do |obj|
   load_deps(obj.ext('d'), obj)
 end
 
-# 为可执行文件注入依赖（out/main 对应 out/main.bin.d）
-BINS.each do |exe|
-  load_deps("#{exe}.bin.d", exe)
+# 为可执行文件对象文件注入依赖（out/main.bin.o 对应 out/main.bin.o.d）
+BIN_OBJS.each do |obj|
+  load_deps("#{obj}.d", obj)
 end
 
 # ========================================
