@@ -4,8 +4,8 @@ require 'prism'
 
 # 中缀表达式转后缀表达式
 #
-# expr (String) 中缀表达式
-# return (String) 后缀表达式，空格分割
+# @param expr [String] 中缀表达式
+# @return [String] 后缀表达式，空格分割
 def to_postfix(expr)
   # 运算符优先级表，数值越大优先级越高
   precedence = { '*' => 2, '/' => 2, '+' => 1, '-' => 1 }
