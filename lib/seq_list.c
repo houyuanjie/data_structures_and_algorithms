@@ -74,62 +74,68 @@ void SeqList_Print(SeqList *seq)
     }
 
     printf("[\n");
+    // i 是数组下标（从0开始），显示时换算为位序 ord（从1开始）
     for (int i = 0; i < seq->Length; i++)
     {
+        int ord = i + 1;
         int item = seq->Data[i];
-        printf("  (%d) = %d,\n", i + 1, item); // 显示位序（从1开始）
+        printf("  (%d) = %d,\n", ord, item);
     }
     printf("]\n");
 }
 
-SeqList_Result SeqList_GetItem(SeqList *seq, int index, int *item)
+SeqList_Result SeqList_GetItem(SeqList *seq, int ord, int *item)
 {
     if (seq == NULL || seq->Data == NULL)
     {
         printf("<SeqList_GetItem> seq 为 NULL 或未正确初始化\n");
         return SeqList_Error_NULL_SEQ;
     }
-    if (index < 1 || seq->Length < index)
+    if (ord < 1 || seq->Length < ord)
     {
-        printf("<SeqList_GetItem> index 超出界限, index = %d, length = %d\n", index, seq->Length);
-        return SeqList_Error_INDEX_OUT_OF_RANGE;
+        printf("<SeqList_GetItem> ord 超出界限, ord = %d, length = %d\n", ord, seq->Length);
+        return SeqList_Error_ORD_OUT_OF_RANGE;
     }
 
+    // ord 是位序（从1开始），换算为数组下标 index（从0开始）
+    int index = ord - 1;
     if (item != NULL)
     {
-        *item = seq->Data[index - 1];
+        *item = seq->Data[index];
     }
     return SeqList_Success;
 }
 
-SeqList_Result SeqList_PutItem(SeqList *seq, int index, int item, int *oldItem)
+SeqList_Result SeqList_PutItem(SeqList *seq, int ord, int item, int *oldItem)
 {
     if (seq == NULL || seq->Data == NULL)
     {
         printf("<SeqList_PutItem> seq 为 NULL 或未正确初始化\n");
         return SeqList_Error_NULL_SEQ;
     }
-    if (index < 1 || seq->Length < index)
+    if (ord < 1 || seq->Length < ord)
     {
-        printf("<SeqList_PutItem> index 超出界限, index = %d, length = %d\n", index, seq->Length);
-        return SeqList_Error_INDEX_OUT_OF_RANGE;
+        printf("<SeqList_PutItem> ord 超出界限, ord = %d, length = %d\n", ord, seq->Length);
+        return SeqList_Error_ORD_OUT_OF_RANGE;
     }
 
+    // ord 是位序（从1开始），换算为数组下标 index（从0开始）
+    int index = ord - 1;
     if (oldItem != NULL)
     {
-        *oldItem = seq->Data[index - 1];
+        *oldItem = seq->Data[index];
     }
 
-    seq->Data[index - 1] = item;
+    seq->Data[index] = item;
 
     return SeqList_Success;
 }
 
-int SeqList_IndexOfItem(SeqList *seq, int item)
+int SeqList_OrdOfItem(SeqList *seq, int item)
 {
     if (seq == NULL || seq->Data == NULL)
     {
-        printf("<SeqList_IndexOfItem> seq 为 NULL 或未正确初始化\n");
+        printf("<SeqList_OrdOfItem> seq 为 NULL 或未正确初始化\n");
         return SeqList_Error_NULL_SEQ;
     }
 
@@ -138,28 +144,30 @@ int SeqList_IndexOfItem(SeqList *seq, int item)
         return SeqList_Error_ITEM_NOT_FOUND;
     }
 
+    // i 是数组下标（从0开始），找到后返回对应的位序 ord（从1开始）
     for (int i = 0; i < seq->Length; i++)
     {
         if (seq->Data[i] == item)
         {
-            return i + 1;
+            int ord = i + 1;
+            return ord;
         }
     }
 
     return SeqList_Error_ITEM_NOT_FOUND;
 }
 
-SeqList_Result SeqList_InsertItem(SeqList *seq, int index, int item)
+SeqList_Result SeqList_InsertItem(SeqList *seq, int ord, int item)
 {
     if (seq == NULL || seq->Data == NULL)
     {
         printf("<SeqList_InsertItem> seq 为 NULL 或未正确初始化\n");
         return SeqList_Error_NULL_SEQ;
     }
-    if (index < 1 || seq->Length + 1 < index)
+    if (ord < 1 || seq->Length + 1 < ord)
     {
-        printf("<SeqList_InsertItem> index 超出界限, index = %d, length = %d\n", index, seq->Length);
-        return SeqList_Error_INDEX_OUT_OF_RANGE;
+        printf("<SeqList_InsertItem> ord 超出界限, ord = %d, length = %d\n", ord, seq->Length);
+        return SeqList_Error_ORD_OUT_OF_RANGE;
     }
 
     // 检查是否需要扩容
@@ -173,7 +181,7 @@ SeqList_Result SeqList_InsertItem(SeqList *seq, int index, int item)
             return SeqList_Error_ALLOC_FAILED;
         }
 
-        // 复制元素
+        // 复制元素，i 是数组下标（从0开始）
         for (int i = 0; i < seq->Length; i++)
         {
             newData[i] = seq->Data[i];
@@ -187,53 +195,56 @@ SeqList_Result SeqList_InsertItem(SeqList *seq, int index, int item)
         seq->Data = newData;
     }
 
-    // 向后移动元素，
-    // index 是新元素要插入 seq 的位序（从1开始），
-    // index - 1 是新元素要插入 data 的下标（从0开始）
+    // 向后移动元素，为新元素腾出空间。
+    // ord 是新元素要插入的位序（从1开始），
+    // index = ord - 1 是新元素要插入的数组下标（从0开始）。
     //
-    // data[length - 1] -> data[length]
-    // data[length - 2] -> data[length - 1]
+    // 移动方向（数组下标 i 从 Length-1 递减到 index）：
+    //   Data[Length-1] -> Data[Length]
+    //   Data[Length-2] -> Data[Length-1]
     //                  ...
-    // data[index]      -> data[index + 1]
-    // data[index - 1]  -> data[index]
-    for (int i = seq->Length; i >= index; i--)
+    //   Data[index]    -> Data[index+1]
+    int index = ord - 1;
+    for (int i = seq->Length - 1; i >= index; i--)
     {
-        seq->Data[i] = seq->Data[i - 1];
+        seq->Data[i + 1] = seq->Data[i];
     }
 
-    seq->Data[index - 1] = item;
+    seq->Data[index] = item;
     seq->Length++;
 
     return SeqList_Success;
 }
 
-SeqList_Result SeqList_DeleteItem(SeqList *seq, int index, int *item)
+SeqList_Result SeqList_DeleteItem(SeqList *seq, int ord, int *item)
 {
     if (seq == NULL || seq->Data == NULL)
     {
         printf("<SeqList_DeleteItem> seq 为 NULL 或未正确初始化\n");
         return SeqList_Error_NULL_SEQ;
     }
-    if (index < 1 || seq->Length < index)
+    if (ord < 1 || seq->Length < ord)
     {
-        printf("<SeqList_DeleteItem> index 超出界限, index = %d, length = %d\n", index, seq->Length);
-        return SeqList_Error_INDEX_OUT_OF_RANGE;
+        printf("<SeqList_DeleteItem> ord 超出界限, ord = %d, length = %d\n", ord, seq->Length);
+        return SeqList_Error_ORD_OUT_OF_RANGE;
     }
 
+    // ord 是位序（从1开始），换算为数组下标 index（从0开始）
+    int index = ord - 1;
     if (item != NULL)
     {
-        *item = seq->Data[index - 1];
+        *item = seq->Data[index];
     }
 
-    // 向前移动元素，
-    // index 是要删除元素在 seq 中的位序（从1开始），
-    // index - 1 是要删除元素在 data 中的下标（从0开始）
+    // 向前移动元素，覆盖被删除的元素。
+    // index 是要删除元素的数组下标（从0开始）。
     //
-    // data[index]      -> data[index - 1]
-    // data[index + 1]  -> data[index]
+    // 移动方向（数组下标 i 从 index+1 递增到 Length-1）：
+    //   Data[index+1] -> Data[index]
+    //   Data[index+2] -> Data[index+1]
     //                  ...
-    // data[length - 1] -> data[length - 2]
-    for (int i = index; i <= seq->Length - 1; i++)
+    //   Data[Length-1] -> Data[Length-2]
+    for (int i = index + 1; i <= seq->Length - 1; i++)
     {
         seq->Data[i - 1] = seq->Data[i];
     }
