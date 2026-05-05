@@ -23,7 +23,7 @@ int test_basic_operations()
     printf("\n=== 基本操作测试 ===\n");
 
     SeqList seq;
-    int item;
+    int elem;
 
     // 初始化
     TEST("初始化顺序表", SeqList_Initialize(&seq));
@@ -31,9 +31,9 @@ int test_basic_operations()
     TEST("初始为空表", SeqList_IsEmpty(&seq));
 
     // 插入测试
-    TEST("在位序 1 插入 10", SeqList_InsertItem(&seq, 1, 10));
-    TEST("在位序 2 插入 20", SeqList_InsertItem(&seq, 2, 20));
-    TEST("在位序 1 插入 5 (头部)", SeqList_InsertItem(&seq, 1, 5));
+    TEST("在位序 1 插入 10", SeqList_InsertElem(&seq, 1, 10));
+    TEST("在位序 2 插入 20", SeqList_InsertElem(&seq, 2, 20));
+    TEST("在位序 1 插入 5 (头部)", SeqList_InsertElem(&seq, 1, 5));
     TEST("当前长度为 3", SeqList_GetLength(&seq) == 3);
 
     // 打印当前状态
@@ -41,35 +41,35 @@ int test_basic_operations()
     SeqList_Print(&seq);
 
     // 获取测试
-    TEST("获取位序 1 的元素", SeqList_GetItem(&seq, 1, &item));
-    TEST("位序 1 的元素是 5", item == 5);
+    TEST("获取位序 1 的元素", SeqList_GetElem(&seq, 1, &elem));
+    TEST("位序 1 的元素是 5", elem == 5);
 
-    TEST("获取位序 2 的元素", SeqList_GetItem(&seq, 2, &item));
-    TEST("位序 2 的元素是 10", item == 10);
+    TEST("获取位序 2 的元素", SeqList_GetElem(&seq, 2, &elem));
+    TEST("位序 2 的元素是 10", elem == 10);
 
-    TEST("获取位序 3 的元素", SeqList_GetItem(&seq, 3, &item));
-    TEST("位序 3 的元素是 20", item == 20);
+    TEST("获取位序 3 的元素", SeqList_GetElem(&seq, 3, &elem));
+    TEST("位序 3 的元素是 20", elem == 20);
 
     // 修改测试
-    int oldItem;
-    TEST("修改位序 2 的元素为 15", SeqList_PutItem(&seq, 2, 15, &oldItem));
-    TEST("旧值为 10", oldItem == 10);
-    TEST("获取修改后的值", SeqList_GetItem(&seq, 2, &item));
-    TEST("新值为 15", item == 15);
+    int oldElem;
+    TEST("修改位序 2 的元素为 15", SeqList_PutElem(&seq, 2, 15, &oldElem));
+    TEST("旧值为 10", oldElem == 10);
+    TEST("获取修改后的值", SeqList_GetElem(&seq, 2, &elem));
+    TEST("新值为 15", elem == 15);
 
     // 查找测试
-    TEST("查找 5 的位序为 1", SeqList_OrdOfItem(&seq, 5) == 1);
-    TEST("查找 15 的位序为 2", SeqList_OrdOfItem(&seq, 15) == 2);
-    TEST("查找 20 的位序为 3", SeqList_OrdOfItem(&seq, 20) == 3);
-    TEST("查找不存在的元素返回 0", SeqList_OrdOfItem(&seq, 999) == 0);
+    TEST("查找 5 的位序为 1", SeqList_GetOrdOfElem(&seq, 5) == 1);
+    TEST("查找 15 的位序为 2", SeqList_GetOrdOfElem(&seq, 15) == 2);
+    TEST("查找 20 的位序为 3", SeqList_GetOrdOfElem(&seq, 20) == 3);
+    TEST("查找不存在的元素返回 0", SeqList_GetOrdOfElem(&seq, 999) == 0);
 
     // 删除测试
-    TEST("删除位序 2 的元素", SeqList_DeleteItem(&seq, 2, &item));
-    TEST("删除的元素是 15", item == 15);
+    TEST("删除位序 2 的元素", SeqList_DeleteElem(&seq, 2, &elem));
+    TEST("删除的元素是 15", elem == 15);
     TEST("删除后长度为 2", SeqList_GetLength(&seq) == 2);
 
-    TEST("获取新的位序 2", SeqList_GetItem(&seq, 2, &item));
-    TEST("现在位序 2 的元素是 20", item == 20);
+    TEST("获取新的位序 2", SeqList_GetElem(&seq, 2, &elem));
+    TEST("现在位序 2 的元素是 20", elem == 20);
 
     // 销毁
     TEST("销毁顺序表", SeqList_Destroy(&seq));
@@ -83,45 +83,45 @@ int test_boundary_conditions()
     printf("\n=== 边界条件测试 ===\n");
 
     SeqList seq;
-    int item;
+    int elem;
 
     SeqList_Initialize(&seq);
 
     // 越界插入测试
-    TEST("在位序 0 插入 (越界，应失败)", !SeqList_InsertItem(&seq, 0, 1));
-    TEST("在位序 2 插入空表 (越界，应失败)", !SeqList_InsertItem(&seq, 2, 1));
+    TEST("在位序 0 插入 (越界，应失败)", !SeqList_InsertElem(&seq, 0, 1));
+    TEST("在位序 2 插入空表 (越界，应失败)", !SeqList_InsertElem(&seq, 2, 1));
 
     // 插入一个元素后测试越界
-    SeqList_InsertItem(&seq, 1, 100);
-    TEST("在位序 3 插入 (越界，应失败)", !SeqList_InsertItem(&seq, 3, 1));
+    SeqList_InsertElem(&seq, 1, 100);
+    TEST("在位序 3 插入 (越界，应失败)", !SeqList_InsertElem(&seq, 3, 1));
 
     // 越界获取/修改/删除
-    TEST("获取位序 0 (越界，应失败)", !SeqList_GetItem(&seq, 0, &item));
-    TEST("获取位序 2 (越界，应失败)", !SeqList_GetItem(&seq, 2, &item));
-    TEST("修改位序 0 (越界，应失败)", !SeqList_PutItem(&seq, 0, 1, NULL));
-    TEST("删除位序 0 (越界，应失败)", !SeqList_DeleteItem(&seq, 0, &item));
+    TEST("获取位序 0 (越界，应失败)", !SeqList_GetElem(&seq, 0, &elem));
+    TEST("获取位序 2 (越界，应失败)", !SeqList_GetElem(&seq, 2, &elem));
+    TEST("修改位序 0 (越界，应失败)", !SeqList_PutElem(&seq, 0, 1, NULL));
+    TEST("删除位序 0 (越界，应失败)", !SeqList_DeleteElem(&seq, 0, &elem));
 
     // NULL 指针测试
     TEST("NULL 初始化 (应失败)", !SeqList_Initialize(NULL));
     TEST("NULL 销毁 (应失败)", !SeqList_Destroy(NULL));
     TEST("NULL 获取长度返回 0", SeqList_GetLength(NULL) == 0);
-    TEST("NULL 查找元素返回 0", SeqList_OrdOfItem(NULL, 1) == 0);
-    TEST("NULL 插入 (应失败)", !SeqList_InsertItem(NULL, 1, 1));
-    TEST("NULL 获取 (应失败)", !SeqList_GetItem(NULL, 1, &item));
-    TEST("NULL 修改 (应失败)", !SeqList_PutItem(NULL, 1, 1, NULL));
-    TEST("NULL 删除 (应失败)", !SeqList_DeleteItem(NULL, 1, &item));
+    TEST("NULL 查找元素返回 0", SeqList_GetOrdOfElem(NULL, 1) == 0);
+    TEST("NULL 插入 (应失败)", !SeqList_InsertElem(NULL, 1, 1));
+    TEST("NULL 获取 (应失败)", !SeqList_GetElem(NULL, 1, &elem));
+    TEST("NULL 修改 (应失败)", !SeqList_PutElem(NULL, 1, 1, NULL));
+    TEST("NULL 删除 (应失败)", !SeqList_DeleteElem(NULL, 1, &elem));
 
     // 空表操作
     SeqList_Destroy(&seq);
     SeqList_Initialize(&seq);
-    TEST("空表查找返回 0", SeqList_OrdOfItem(&seq, 1) == 0);
+    TEST("空表查找返回 0", SeqList_GetOrdOfElem(&seq, 1) == 0);
 
-    // 可选参数测试（item / oldItem 可为 NULL）
-    TEST("获取元素但 item 为 NULL (空表越界，应失败)", !SeqList_GetItem(&seq, 1, NULL));
-    SeqList_InsertItem(&seq, 1, 42);
-    TEST("获取元素但 item 为 NULL (有效位序)", SeqList_GetItem(&seq, 1, NULL));
-    TEST("修改元素但 oldItem 为 NULL", SeqList_PutItem(&seq, 1, 99, NULL));
-    TEST("删除元素但 item 为 NULL", SeqList_DeleteItem(&seq, 1, NULL));
+    // 可选参数测试（elem / oldElem 可为 NULL）
+    TEST("获取元素但 elem 为 NULL (空表越界，应失败)", !SeqList_GetElem(&seq, 1, NULL));
+    SeqList_InsertElem(&seq, 1, 42);
+    TEST("获取元素但 elem 为 NULL (有效位序)", SeqList_GetElem(&seq, 1, NULL));
+    TEST("修改元素但 oldElem 为 NULL", SeqList_PutElem(&seq, 1, 99, NULL));
+    TEST("删除元素但 elem 为 NULL", SeqList_DeleteElem(&seq, 1, NULL));
 
     SeqList_Destroy(&seq);
     return 0;
@@ -138,7 +138,7 @@ int test_expansion()
     printf("  插入 20 个元素触发扩容...\n");
     for (int ord = 1; ord <= 20; ord++)
     {
-        if (!SeqList_InsertItem(&seq, ord, ord * 10))
+        if (!SeqList_InsertElem(&seq, ord, ord * 10))
         {
             printf("  插入第 %d 个元素失败\n", ord);
             return 1;
@@ -153,7 +153,7 @@ int test_expansion()
     for (int ord = 1; ord <= 20; ord++)
     {
         int val;
-        SeqList_GetItem(&seq, ord, &val);
+        SeqList_GetElem(&seq, ord, &val);
         if (val != ord * 10)
         {
             all_correct = 0;
@@ -167,14 +167,14 @@ int test_expansion()
     for (int ord = 1; ord <= 5; ord++)
     {
         int val;
-        SeqList_GetItem(&seq, ord, &val);
+        SeqList_GetElem(&seq, ord, &val);
         printf("(%d)=%d, ", ord, val);
     }
     printf("... ");
     for (int ord = 16; ord <= 20; ord++)
     {
         int val;
-        SeqList_GetItem(&seq, ord, &val);
+        SeqList_GetElem(&seq, ord, &val);
         printf("(%d)=%d%s", ord, val, ord < 20 ? ", " : "");
     }
     printf("]\n");
@@ -189,56 +189,56 @@ int test_complex_scenarios()
 
     SeqList seq;
     SeqList_Initialize(&seq);
-    int item;
+    int elem;
 
     // 场景：在头部反复插入，ord 是位序（从1开始）
     printf("  测试：头部插入 5 次\n");
     for (int ord = 1; ord <= 5; ord++)
     {
-        SeqList_InsertItem(&seq, 1, ord);
+        SeqList_InsertElem(&seq, 1, ord);
     }
     // 结果应该是 5, 4, 3, 2, 1
     TEST("头部插入后长度为 5", SeqList_GetLength(&seq) == 5);
-    SeqList_GetItem(&seq, 1, &item);
-    TEST("第 1 个是 5", item == 5);
-    SeqList_GetItem(&seq, 5, &item);
-    TEST("第 5 个是 1", item == 1);
+    SeqList_GetElem(&seq, 1, &elem);
+    TEST("第 1 个是 5", elem == 5);
+    SeqList_GetElem(&seq, 5, &elem);
+    TEST("第 5 个是 1", elem == 1);
 
     // 场景：在尾部插入
     printf("  测试：尾部追加 3 次\n");
     int len = SeqList_GetLength(&seq);
-    SeqList_InsertItem(&seq, len + 1, 100);
-    SeqList_InsertItem(&seq, len + 2, 200);
-    SeqList_InsertItem(&seq, len + 3, 300);
+    SeqList_InsertElem(&seq, len + 1, 100);
+    SeqList_InsertElem(&seq, len + 2, 200);
+    SeqList_InsertElem(&seq, len + 3, 300);
     TEST("尾部追加后长度为 8", SeqList_GetLength(&seq) == 8);
 
     // 场景：在中间插入
     printf("  测试：在中间位序插入\n");
-    SeqList_InsertItem(&seq, 4, 999); // 在位序 3 和 2 之间插入 999
-    SeqList_GetItem(&seq, 3, &item);
-    TEST("第 3 个是 3", item == 3);
-    SeqList_GetItem(&seq, 4, &item);
-    TEST("第 4 个是 999", item == 999);
-    SeqList_GetItem(&seq, 5, &item);
-    TEST("第 5 个是 2", item == 2);
+    SeqList_InsertElem(&seq, 4, 999); // 在位序 3 和 2 之间插入 999
+    SeqList_GetElem(&seq, 3, &elem);
+    TEST("第 3 个是 3", elem == 3);
+    SeqList_GetElem(&seq, 4, &elem);
+    TEST("第 4 个是 999", elem == 999);
+    SeqList_GetElem(&seq, 5, &elem);
+    TEST("第 5 个是 2", elem == 2);
 
     printf("  当前顺序表内容:\n");
     SeqList_Print(&seq);
 
     // 场景：删除头部、尾部、中间
     printf("  测试：删除头部\n");
-    SeqList_DeleteItem(&seq, 1, &item);
-    TEST("删除头部元素是 5", item == 5);
-    TEST("新头部是 4", SeqList_GetItem(&seq, 1, &item) && item == 4);
+    SeqList_DeleteElem(&seq, 1, &elem);
+    TEST("删除头部元素是 5", elem == 5);
+    TEST("新头部是 4", SeqList_GetElem(&seq, 1, &elem) && elem == 4);
 
     printf("  测试：删除尾部\n");
     int old_len = SeqList_GetLength(&seq);
-    SeqList_DeleteItem(&seq, old_len, &item);
-    TEST("删除尾部元素是 300", item == 300);
+    SeqList_DeleteElem(&seq, old_len, &elem);
+    TEST("删除尾部元素是 300", elem == 300);
 
     printf("  测试：删除中间 (位序 3)\n");
-    SeqList_DeleteItem(&seq, 3, &item);
-    TEST("删除的元素是 999", item == 999);
+    SeqList_DeleteElem(&seq, 3, &elem);
+    TEST("删除的元素是 999", elem == 999);
 
     printf("  操作后顺序表内容:\n");
     SeqList_Print(&seq);

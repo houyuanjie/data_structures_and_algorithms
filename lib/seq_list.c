@@ -108,51 +108,51 @@ void SeqList_Print(SeqList *seq)
  * 元素存取
  * ========================================================================== */
 
-bool SeqList_GetItem(SeqList *seq, int ord, int *item)
+bool SeqList_GetElem(SeqList *seq, int ord, int *elem)
 {
     if (seq == NULL || seq->Data == NULL)
     {
-        printf("<SeqList_GetItem> seq 为 NULL 或未初始化\n");
+        printf("<SeqList_GetElem> seq 为 NULL 或未初始化\n");
         return false;
     }
     if (ord < 1 || seq->Length < ord)
     {
-        printf("<SeqList_GetItem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+        printf("<SeqList_GetElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
                ord, seq->Length, seq->Length);
         return false;
     }
 
     // ord 是位序（1-based），换算为数组下标 index（0-based）
     int index = ord - 1;
-    if (item != NULL)
+    if (elem != NULL)
     {
-        *item = seq->Data[index];
+        *elem = seq->Data[index];
     }
     return true;
 }
 
-bool SeqList_PutItem(SeqList *seq, int ord, int item, int *oldItem)
+bool SeqList_PutElem(SeqList *seq, int ord, int elem, int *oldElem)
 {
     if (seq == NULL || seq->Data == NULL)
     {
-        printf("<SeqList_PutItem> seq 为 NULL 或未初始化\n");
+        printf("<SeqList_PutElem> seq 为 NULL 或未初始化\n");
         return false;
     }
     if (ord < 1 || seq->Length < ord)
     {
-        printf("<SeqList_PutItem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+        printf("<SeqList_PutElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
                ord, seq->Length, seq->Length);
         return false;
     }
 
     // ord 是位序（1-based），换算为数组下标 index（0-based）
     int index = ord - 1;
-    if (oldItem != NULL)
+    if (oldElem != NULL)
     {
-        *oldItem = seq->Data[index];
+        *oldElem = seq->Data[index];
     }
 
-    seq->Data[index] = item;
+    seq->Data[index] = elem;
 
     return true;
 }
@@ -164,37 +164,37 @@ bool SeqList_PutItem(SeqList *seq, int ord, int item, int *oldItem)
  * 时间复杂度 O(n)，空间复杂度 O(1)。
  * ========================================================================== */
 
-int SeqList_OrdOfItem(SeqList *seq, int item)
+int SeqList_GetOrdOfElem(SeqList *seq, int elem)
 {
     if (seq == NULL || seq->Data == NULL)
     {
-        printf("<SeqList_OrdOfItem> seq 为 NULL 或未初始化\n");
+        printf("<SeqList_GetOrdOfElem> seq 为 NULL 或未初始化\n");
         return 0;
     }
 
     if (seq->Length == 0)
     {
-        printf("<SeqList_OrdOfItem> 表为空，元素 %d 不存在\n", item);
+        printf("<SeqList_GetOrdOfElem> 表为空，元素 %d 不存在\n", elem);
         return 0;
     }
 
     // 顺序扫描：i 为数组下标（0-based），找到后返回位序 ord（1-based）
     for (int i = 0; i < seq->Length; i++)
     {
-        if (seq->Data[i] == item)
+        if (seq->Data[i] == elem)
         {
             return i + 1; // 下标 → 位序
         }
     }
 
-    printf("<SeqList_OrdOfItem> 元素 %d 未找到\n", item);
+    printf("<SeqList_GetOrdOfElem> 元素 %d 未找到\n", elem);
     return 0;
 }
 
 /* ==========================================================================
  * 插入 —— 核心算法
  *
- * 在指定位序 ord 处插入新元素 item。算法分三步：
+ * 在指定位序 ord 处插入新元素 elem。算法分三步：
  *
  * 第 1 步：越界检查
  *   有效插入位序范围为 1 .. Length+1，其中 Length+1 表示尾部追加。
@@ -210,25 +210,25 @@ int SeqList_OrdOfItem(SeqList *seq, int item)
  *       移动前:  A[0]  A[1]  ...  A[index]  ...  A[Length-1]
  *       移动后:  A[0]  A[1]  ...   (空)    ...  A[Length-1]  A[Length]
  *                                           ↑
- *                                      插入 item
+ *                                      插入 elem
  *
  *   具体做法：令 i 从 Length-1 递减到 index，每次执行 Data[i+1] = Data[i]。
  *   当循环结束时，Data[index] 已被复制到 Data[index+1]，该位置空出。
- *   最后写入 Data[index] = item，Length 加 1。
+ *   最后写入 Data[index] = elem，Length 加 1。
  *
  * 时间复杂度 O(n)（移动元素），空间复杂度 O(1)（不计扩容时的临时数组）。
  * ========================================================================== */
 
-bool SeqList_InsertItem(SeqList *seq, int ord, int item)
+bool SeqList_InsertElem(SeqList *seq, int ord, int elem)
 {
     if (seq == NULL || seq->Data == NULL)
     {
-        printf("<SeqList_InsertItem> seq 为 NULL 或未初始化\n");
+        printf("<SeqList_InsertElem> seq 为 NULL 或未初始化\n");
         return false;
     }
     if (ord < 1 || seq->Length + 1 < ord)
     {
-        printf("<SeqList_InsertItem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+        printf("<SeqList_InsertElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
                ord, seq->Length, seq->Length + 1);
         return false;
     }
@@ -240,7 +240,7 @@ bool SeqList_InsertItem(SeqList *seq, int ord, int item)
         int *newData = (int *)malloc(sizeof(int) * newMaxSize);
         if (newData == NULL)
         {
-            printf("<SeqList_InsertItem> 扩容失败（无法分配 %d 个元素的空间）\n",
+            printf("<SeqList_InsertElem> 扩容失败（无法分配 %d 个元素的空间）\n",
                    newMaxSize);
             return false;
         }
@@ -268,13 +268,13 @@ bool SeqList_InsertItem(SeqList *seq, int ord, int item)
     //   i=3: Data[4] = Data[3]     A   B   C   D   E   ?
     //   i=2: Data[3] = Data[2]     ↓   ↓   ↓   ↓       ↓
     //   i=1: Data[2] = Data[1]     A   B   B   C   D   E
-    //        Data[1] = item        A  NEW  B   C   D   E
+    //        Data[1] = elem        A  NEW  B   C   D   E
     for (int i = seq->Length - 1; i >= index; i--)
     {
         seq->Data[i + 1] = seq->Data[i];
     }
 
-    seq->Data[index] = item;
+    seq->Data[index] = elem;
     seq->Length++;
 
     return true;
@@ -289,7 +289,7 @@ bool SeqList_InsertItem(SeqList *seq, int ord, int item)
  *   有效删除位序范围为 1 .. Length。
  *
  * 第 2 步：取出被删元素 + 前移覆盖
- *   被删元素在 Data[index]（index = ord - 1）。先用 item 指针传出该值，
+ *   被删元素在 Data[index]（index = ord - 1）。先用 elem 指针传出该值，
  *   然后将其后的所有元素依次向前移动一格：
  *
  *       移动前:  A[0]  ...  A[index]  A[index+1]  ...  A[Length-1]
@@ -301,16 +301,16 @@ bool SeqList_InsertItem(SeqList *seq, int ord, int item)
  * 时间复杂度 O(n)，空间复杂度 O(1)。
  * ========================================================================== */
 
-bool SeqList_DeleteItem(SeqList *seq, int ord, int *item)
+bool SeqList_DeleteElem(SeqList *seq, int ord, int *elem)
 {
     if (seq == NULL || seq->Data == NULL)
     {
-        printf("<SeqList_DeleteItem> seq 为 NULL 或未初始化\n");
+        printf("<SeqList_DeleteElem> seq 为 NULL 或未初始化\n");
         return false;
     }
     if (ord < 1 || seq->Length < ord)
     {
-        printf("<SeqList_DeleteItem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+        printf("<SeqList_DeleteElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
                ord, seq->Length, seq->Length);
         return false;
     }
@@ -319,9 +319,9 @@ bool SeqList_DeleteItem(SeqList *seq, int ord, int *item)
     int index = ord - 1;
 
     // 传出被删除的元素
-    if (item != NULL)
+    if (elem != NULL)
     {
-        *item = seq->Data[index];
+        *elem = seq->Data[index];
     }
 
     // 将后继元素逐个向前移动一格，覆盖被删位置

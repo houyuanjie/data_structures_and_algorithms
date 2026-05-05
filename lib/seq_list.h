@@ -52,30 +52,30 @@ void SeqList_Print(SeqList *seq);
 
 /* ---- 元素存取 ---- */
 
-// 获取位序为 ord 的元素（ord 从 1 开始），通过 item 返回。
-// item 可以为 NULL，此时仅做越界检查而不获取值。
+// 获取位序为 ord 的元素（ord 从 1 开始），通过 elem 返回。
+// elem 可以为 NULL，此时仅做越界检查而不获取值。
 // 成功返回 true；seq 无效或 ord 越界时打印错误并返回 false。
-bool SeqList_GetItem(SeqList *seq, int ord, int *item);
+bool SeqList_GetElem(SeqList *seq, int ord, int *elem);
 
-// 更新位序为 ord 的元素（ord 从 1 开始），新值为 item。
-// 通过 oldItem 返回旧值（oldItem 可为 NULL，不获取旧值）。
+// 更新位序为 ord 的元素（ord 从 1 开始），新值为 elem。
+// 通过 oldElem 返回旧值（oldElem 可为 NULL，不获取旧值）。
 // 成功返回 true；seq 无效或 ord 越界时打印错误并返回 false。
-bool SeqList_PutItem(SeqList *seq, int ord, int item, int *oldItem);
+bool SeqList_PutElem(SeqList *seq, int ord, int elem, int *oldElem);
 
 /* ---- 查找 ---- */
 
 // 按值查找元素，返回其位序（ord，>=1）。
 // 成功时返回位序；未找到、seq 无效或表为空时返回 0（同时打印错误）。
-int SeqList_OrdOfItem(SeqList *seq, int item);
+int SeqList_GetOrdOfElem(SeqList *seq, int elem);
 
 /* ---- 插入与删除（核心算法） ---- */
 
-// 在指定位序 ord 插入新元素 item（ord 从 1 开始，允许 ord = Length+1 即尾部追加）。
+// 在指定位序 ord 插入新元素 elem（ord 从 1 开始，允许 ord = Length+1 即尾部追加）。
 // 插入位置及其后的元素依次后移一格；表满时自动扩容（容量 ×2）。
 // 成功返回 true；seq 无效、ord 越界或扩容失败时打印错误并返回 false。
-bool SeqList_InsertItem(SeqList *seq, int ord, int item);
+bool SeqList_InsertElem(SeqList *seq, int ord, int elem);
 
-// 删除位序为 ord 的元素（ord 从 1 开始），通过 item 返回被删除的值。
-// item 可以为 NULL（不获取被删除的值）；删除位置之后的元素依次前移一格。
+// 删除位序为 ord 的元素（ord 从 1 开始），通过 elem 返回被删除的值。
+// elem 可以为 NULL（不获取被删除的值）；删除位置之后的元素依次前移一格。
 // 成功返回 true；seq 无效或 ord 越界时打印错误并返回 false。
-bool SeqList_DeleteItem(SeqList *seq, int ord, int *item);
+bool SeqList_DeleteElem(SeqList *seq, int ord, int *elem);
