@@ -46,7 +46,7 @@ BIN_SRCS = FileList["#{BIN_DIR}/*.c"]
 LIB_OBJS = LIB_SRCS.pathmap("#{OUT_DIR}/%n.o")
 
 # 静态库目标文件
-LIB_A = "#{OUT_DIR}/libdsa.a"
+LIB_A = "#{OUT_DIR}/libdsa.a".freeze
 
 # 可执行文件目标映射：bin/main.c → out/main（无扩展名）
 BINS = BIN_SRCS.pathmap("#{OUT_DIR}/%n")
@@ -61,7 +61,7 @@ def load_deps(dep_file, target)
   return unless File.exist?(dep_file)
 
   # 读取文件并合并续行（Makefile 风格的 \ 换行）
-  content = File.read(dep_file).gsub(/\\\n/, ' ')
+  content = File.read(dep_file).gsub("\\\n", ' ')
 
   # 匹配 "target: dep1 dep2 ..." 格式
   return unless content =~ /^([^:]+):\s*(.*)$/
