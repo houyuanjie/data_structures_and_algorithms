@@ -68,7 +68,7 @@ end
 # ==========================================================================
 
 require 'minitest/autorun'
-require_relative 'infix_expr_to_postfix'
+require_relative 'to_postfix'
 
 class TestEvalPostfix < Minitest::Test
   # ------------------------------------------------------------------

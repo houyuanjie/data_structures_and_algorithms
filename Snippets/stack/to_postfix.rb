@@ -110,7 +110,7 @@ end
 
 require 'minitest/autorun'
 
-class TestInfixExprToPostfix < Minitest::Test
+class TestToPostfix < Minitest::Test
   # ------------------------------------------------------------------
   # 基本二元运算
   # ------------------------------------------------------------------
