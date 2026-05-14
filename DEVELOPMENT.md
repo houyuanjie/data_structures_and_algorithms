@@ -47,7 +47,9 @@
 │       └── eval_postfix.rb # 栈求值：后缀表达式计算
 ├── out/                  # 构建输出 —— 只读（gitignore）
 ├── Rakefile              # 构建系统 —— 谨慎修改
-└── .clangd .rubocop.yml  # 工具配置 —— 只读
+├── .clang-format          # C 代码格式化配置 —— 只读
+├── .clangd                # C 语言服务器配置 —— 只读
+└── .rubocop.yml           # Ruby 代码风格配置 —— 只读
 ```
 
 ---
@@ -126,7 +128,7 @@ int idx = ord;  // 混淆了位序与下标
 
 ### 风格速查
 
-缩进 4 空格，Allman 大括号，`int *ptr`（星靠变量），`PascalCase` 类型无 `_t` 后缀，`ModuleName_VerbNoun` 函数名，行宽 ≤ 80。
+代码风格由 `.clang-format`（基于 LLVM）定义，关键覆盖项：缩进 4 空格，Allman 大括号，`int *ptr`（PointerAlignment: Right），行宽 80。`PascalCase` 类型无 `_t` 后缀，`ModuleName_VerbNoun` 函数名。
 
 ### 错误处理与内存管理
 
@@ -291,7 +293,7 @@ return i + 1;
 ### ⚠️ Ask First
 - 重构跨模块公共接口、修改 `Rakefile`/构建流程
 - 添加外部依赖（C 库或 Ruby gem）
-- 修改 `.clangd`/`.rubocop.yml`、编译选项（CFLAGS/LDFLAGS）
+- 修改 `.clang-format`/`.clangd`/`.rubocop.yml`、编译选项（CFLAGS/LDFLAGS）
 - 新增章节子目录
 
 ### 🚫 Never

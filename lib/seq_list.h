@@ -21,9 +21,9 @@
 // 动态分配的顺序表
 typedef struct SeqList
 {
-    int *Data;      // 指向动态分配的数组空间
-    int Length;     // 当前元素个数（表长）
-    int MaxSize;    // 当前已分配的最大容量
+    int *Data;   // 指向动态分配的数组空间
+    int Length;  // 当前元素个数（表长）
+    int MaxSize; // 当前已分配的最大容量
 } SeqList;
 
 // ---- 创建与销毁 ----

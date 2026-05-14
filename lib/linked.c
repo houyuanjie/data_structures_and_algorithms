@@ -135,8 +135,9 @@ bool Linked_List_GetElem(Linked_List *list, int ord, int *elem)
     }
     if (ord < 1 || list->Length < ord)
     {
-        printf("<Linked_List_GetElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
-               ord, list->Length, list->Length);
+        printf(
+            "<Linked_List_GetElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+            ord, list->Length, list->Length);
         return false;
     }
 
@@ -158,8 +159,9 @@ bool Linked_List_PutElem(Linked_List *list, int ord, int elem, int *oldElem)
     }
     if (ord < 1 || list->Length < ord)
     {
-        printf("<Linked_List_PutElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
-               ord, list->Length, list->Length);
+        printf(
+            "<Linked_List_PutElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+            ord, list->Length, list->Length);
         return false;
     }
 
@@ -271,8 +273,9 @@ bool Linked_List_InsertAtOrd(Linked_List *list, int ord, int elem)
     }
     if (ord < 1 || list->Length + 1 < ord)
     {
-        printf("<Linked_List_InsertAtOrd> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
-               ord, list->Length, list->Length + 1);
+        printf(
+            "<Linked_List_InsertAtOrd> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+            ord, list->Length, list->Length + 1);
         return false;
     }
 
@@ -405,8 +408,9 @@ bool Linked_List_DeleteAtOrd(Linked_List *list, int ord, int *elem)
     }
     if (ord < 1 || list->Length < ord)
     {
-        printf("<Linked_List_DeleteAtOrd> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
-               ord, list->Length, list->Length);
+        printf(
+            "<Linked_List_DeleteAtOrd> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+            ord, list->Length, list->Length);
         return false;
     }
 

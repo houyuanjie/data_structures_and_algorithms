@@ -1,21 +1,21 @@
-#include <stdio.h>
-#include <assert.h>
 #include "seq_list.h"
+#include <assert.h>
+#include <stdio.h>
 
 // 测试宏：检查布尔表达式并打印结果
-#define TEST(name, expr)                             \
-    do                                               \
-    {                                                \
-        printf("  [测试] %-40s ", name);             \
-        if (expr)                                    \
-        {                                            \
-            printf("✓ 通过\n");                      \
-        }                                            \
-        else                                         \
-        {                                            \
-            printf("✗ 失败 (第 %d 行)\n", __LINE__); \
-            return 1;                                \
-        }                                            \
+#define TEST(name, expr)                                                       \
+    do                                                                         \
+    {                                                                          \
+        printf("  [测试] %-40s ", name);                                       \
+        if (expr)                                                              \
+        {                                                                      \
+            printf("✓ 通过\n");                                                \
+        }                                                                      \
+        else                                                                   \
+        {                                                                      \
+            printf("✗ 失败 (第 %d 行)\n", __LINE__);                           \
+            return 1;                                                          \
+        }                                                                      \
     } while (0)
 
 int test_basic_operations()
@@ -117,7 +117,8 @@ int test_boundary_conditions()
     TEST("空表查找返回 0", SeqList_GetOrdOfElem(&seq, 1) == 0);
 
     // 可选参数测试（elem / oldElem 可为 NULL）
-    TEST("获取元素但 elem 为 NULL (空表越界，应失败)", !SeqList_GetElem(&seq, 1, NULL));
+    TEST("获取元素但 elem 为 NULL (空表越界，应失败)",
+         !SeqList_GetElem(&seq, 1, NULL));
     SeqList_InsertElem(&seq, 1, 42);
     TEST("获取元素但 elem 为 NULL (有效位序)", SeqList_GetElem(&seq, 1, NULL));
     TEST("修改元素但 oldElem 为 NULL", SeqList_PutElem(&seq, 1, 99, NULL));

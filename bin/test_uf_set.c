@@ -3,19 +3,19 @@
 #include <stdio.h>
 
 // 测试宏：检查条件并打印结果
-#define TEST(name, expr)                             \
-    do                                               \
-    {                                                \
-        printf("  [测试] %-40s ", name);             \
-        if (expr)                                    \
-        {                                            \
-            printf("✓ 通过\n");                      \
-        }                                            \
-        else                                         \
-        {                                            \
-            printf("✗ 失败 (第 %d 行)\n", __LINE__); \
-            return 1;                                \
-        }                                            \
+#define TEST(name, expr)                                                       \
+    do                                                                         \
+    {                                                                          \
+        printf("  [测试] %-40s ", name);                                       \
+        if (expr)                                                              \
+        {                                                                      \
+            printf("✓ 通过\n");                                                \
+        }                                                                      \
+        else                                                                   \
+        {                                                                      \
+            printf("✗ 失败 (第 %d 行)\n", __LINE__);                           \
+            return 1;                                                          \
+        }                                                                      \
     } while (0)
 
 int test_initialize_and_destroy()
@@ -185,22 +185,18 @@ int test_multiple_sets()
 
     // 验证各集合的根
     TEST("集合 A: Find(0)=0, Find(1)=0, Find(2)=0",
-         UFSet_Find(&set, 0) == 0 &&
-         UFSet_Find(&set, 1) == 0 &&
-         UFSet_Find(&set, 2) == 0);
+         UFSet_Find(&set, 0) == 0 && UFSet_Find(&set, 1) == 0 &&
+             UFSet_Find(&set, 2) == 0);
 
     TEST("集合 B: Find(3)=3, Find(4)=3",
-         UFSet_Find(&set, 3) == 3 &&
-         UFSet_Find(&set, 4) == 3);
+         UFSet_Find(&set, 3) == 3 && UFSet_Find(&set, 4) == 3);
 
     TEST("集合 C: Find(5)=5, Find(6)=5, Find(7)=5",
-         UFSet_Find(&set, 5) == 5 &&
-         UFSet_Find(&set, 6) == 5 &&
-         UFSet_Find(&set, 7) == 5);
+         UFSet_Find(&set, 5) == 5 && UFSet_Find(&set, 6) == 5 &&
+             UFSet_Find(&set, 7) == 5);
 
     TEST("孤立元素: Find(8)=8, Find(9)=9",
-         UFSet_Find(&set, 8) == 8 &&
-         UFSet_Find(&set, 9) == 9);
+         UFSet_Find(&set, 8) == 8 && UFSet_Find(&set, 9) == 9);
 
     // 合并集合 A 和 B
     int rootA = UFSet_Find(&set, 0); // = 0
@@ -212,7 +208,7 @@ int test_multiple_sets()
 
     // 合并 (A+B) 和 C
     int rootAB = UFSet_Find(&set, 0); // = 0
-    int rootC  = UFSet_Find(&set, 5); // = 5
+    int rootC = UFSet_Find(&set, 5);  // = 5
     UFSet_Union(&set, rootAB, rootC);
 
     TEST("合并 (A+B)+C 后: Find(7) = 0", UFSet_Find(&set, 7) == 0);

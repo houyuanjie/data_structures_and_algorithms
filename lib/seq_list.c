@@ -117,8 +117,9 @@ bool SeqList_GetElem(SeqList *seq, int ord, int *elem)
     }
     if (ord < 1 || seq->Length < ord)
     {
-        printf("<SeqList_GetElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
-               ord, seq->Length, seq->Length);
+        printf(
+            "<SeqList_GetElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+            ord, seq->Length, seq->Length);
         return false;
     }
 
@@ -140,8 +141,9 @@ bool SeqList_PutElem(SeqList *seq, int ord, int elem, int *oldElem)
     }
     if (ord < 1 || seq->Length < ord)
     {
-        printf("<SeqList_PutElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
-               ord, seq->Length, seq->Length);
+        printf(
+            "<SeqList_PutElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+            ord, seq->Length, seq->Length);
         return false;
     }
 
@@ -228,8 +230,9 @@ bool SeqList_InsertElem(SeqList *seq, int ord, int elem)
     }
     if (ord < 1 || seq->Length + 1 < ord)
     {
-        printf("<SeqList_InsertElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
-               ord, seq->Length, seq->Length + 1);
+        printf(
+            "<SeqList_InsertElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+            ord, seq->Length, seq->Length + 1);
         return false;
     }
 
@@ -240,8 +243,9 @@ bool SeqList_InsertElem(SeqList *seq, int ord, int elem)
         int *newData = (int *)malloc(sizeof(int) * newMaxSize);
         if (newData == NULL)
         {
-            printf("<SeqList_InsertElem> 扩容失败（无法分配 %d 个元素的空间）\n",
-                   newMaxSize);
+            printf(
+                "<SeqList_InsertElem> 扩容失败（无法分配 %d 个元素的空间）\n",
+                newMaxSize);
             return false;
         }
 
@@ -310,8 +314,9 @@ bool SeqList_DeleteElem(SeqList *seq, int ord, int *elem)
     }
     if (ord < 1 || seq->Length < ord)
     {
-        printf("<SeqList_DeleteElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
-               ord, seq->Length, seq->Length);
+        printf(
+            "<SeqList_DeleteElem> 位序 ord = %d 越界（表长 = %d，有效位序 1..%d）\n",
+            ord, seq->Length, seq->Length);
         return false;
     }
 

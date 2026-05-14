@@ -8,3 +8,5 @@ ColumnLimit: 80
 
 BreakStringLiterals: false
 BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: None
+ReflowComments: false

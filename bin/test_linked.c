@@ -1,20 +1,20 @@
-#include <stdio.h>
 #include "linked.h"
+#include <stdio.h>
 
 // 测试宏：检查布尔表达式并打印结果
-#define TEST(name, expr)                             \
-    do                                               \
-    {                                                \
-        printf("  [测试] %-40s ", name);             \
-        if (expr)                                    \
-        {                                            \
-            printf("✓ 通过\n");                      \
-        }                                            \
-        else                                         \
-        {                                            \
-            printf("✗ 失败 (第 %d 行)\n", __LINE__); \
-            return 1;                                \
-        }                                            \
+#define TEST(name, expr)                                                       \
+    do                                                                         \
+    {                                                                          \
+        printf("  [测试] %-40s ", name);                                       \
+        if (expr)                                                              \
+        {                                                                      \
+            printf("✓ 通过\n");                                                \
+        }                                                                      \
+        else                                                                   \
+        {                                                                      \
+            printf("✗ 失败 (第 %d 行)\n", __LINE__);                           \
+            return 1;                                                          \
+        }                                                                      \
     } while (0)
 
 // ==========================================================================
@@ -65,7 +65,8 @@ int test_basic_operations()
 
     // 修改测试
     int oldElem;
-    TEST("修改位序 2 的元素为 100", Linked_List_PutElem(&list, 2, 100, &oldElem));
+    TEST("修改位序 2 的元素为 100",
+         Linked_List_PutElem(&list, 2, 100, &oldElem));
     TEST("旧值为 10", oldElem == 10);
     TEST("获取修改后的值", Linked_List_GetElem(&list, 2, &elem));
     TEST("新值为 100", elem == 100);
@@ -117,7 +118,8 @@ int test_boundary_conditions()
 
     // 越界插入
     TEST("在位序 0 插入 (越界，应失败)", !Linked_List_InsertAtOrd(&list, 0, 1));
-    TEST("在位序 2 插入空表 (越界，应失败)", !Linked_List_InsertAtOrd(&list, 2, 1));
+    TEST("在位序 2 插入空表 (越界，应失败)",
+         !Linked_List_InsertAtOrd(&list, 2, 1));
 
     // 插入一个元素后测试越界
     Linked_List_InsertAtOrd(&list, 1, 100);
@@ -128,8 +130,10 @@ int test_boundary_conditions()
     TEST("获取位序 0 (越界，应失败)", !Linked_List_GetElem(&list, 0, &elem));
     TEST("获取位序 2 (越界，应失败)", !Linked_List_GetElem(&list, 2, &elem));
     TEST("修改位序 0 (越界，应失败)", !Linked_List_PutElem(&list, 0, 1, NULL));
-    TEST("删除位序 0 (越界，应失败)", !Linked_List_DeleteAtOrd(&list, 0, &elem));
-    TEST("删除位序 2 (越界，应失败)", !Linked_List_DeleteAtOrd(&list, 2, &elem));
+    TEST("删除位序 0 (越界，应失败)",
+         !Linked_List_DeleteAtOrd(&list, 0, &elem));
+    TEST("删除位序 2 (越界，应失败)",
+         !Linked_List_DeleteAtOrd(&list, 2, &elem));
 
     // NULL 指针测试：每个对外函数至少测试一次 NULL 参数
     TEST("NULL 初始化 (应失败)", !Linked_List_Initialize(NULL));
@@ -161,10 +165,8 @@ int test_boundary_conditions()
     Linked_List_InsertAtOrd(&list, 1, 42);
     TEST("获取元素但 elem 为 NULL (有效位序)",
          Linked_List_GetElem(&list, 1, NULL));
-    TEST("修改元素但 oldElem 为 NULL",
-         Linked_List_PutElem(&list, 1, 99, NULL));
-    TEST("删除元素但 elem 为 NULL",
-         Linked_List_DeleteAtOrd(&list, 1, NULL));
+    TEST("修改元素但 oldElem 为 NULL", Linked_List_PutElem(&list, 1, 99, NULL));
+    TEST("删除元素但 elem 为 NULL", Linked_List_DeleteAtOrd(&list, 1, NULL));
 
     // 单元素表操作
     Linked_List_Destroy(&list);
@@ -229,7 +231,8 @@ int test_stack_operations()
     TEST("Push 后通用获取位序 1", Linked_List_GetElem(&list, 1, &elem));
     TEST("通用获取位序 1 是 100", elem == 100);
     Linked_List_InsertAtOrd(&list, 2, 200);
-    TEST("通用插入后栈顶仍是 100", Linked_Stack_Peek(&list, &elem) && elem == 100);
+    TEST("通用插入后栈顶仍是 100",
+         Linked_Stack_Peek(&list, &elem) && elem == 100);
     TEST("Pop 弹出 100", Linked_Stack_Pop(&list, &elem) && elem == 100);
     TEST("新栈顶是 200", Linked_Stack_Peek(&list, &elem) && elem == 200);
 
@@ -418,9 +421,9 @@ int test_complex_scenarios()
     TEST("队列为空", Linked_List_IsEmpty(&list));
 
     // 反过来：用 Enqueue 入队，用 Pop 出栈
-    Linked_Queue_Enqueue(&list, 1);  // 队: [1]
-    Linked_Queue_Enqueue(&list, 2);  // 队: [1, 2]
-    Linked_Queue_Enqueue(&list, 3);  // 队: [1, 2, 3]
+    Linked_Queue_Enqueue(&list, 1); // 队: [1]
+    Linked_Queue_Enqueue(&list, 2); // 队: [1, 2]
+    Linked_Queue_Enqueue(&list, 3); // 队: [1, 2, 3]
 
     // Pop 从栈顶（表头）出，LIFO
     TEST("Pop 出 1", Linked_Stack_Pop(&list, &elem) && elem == 1);

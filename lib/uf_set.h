@@ -17,8 +17,8 @@
 
 typedef struct UFSet
 {
-    int Size;   // 集合容量（最大元素个数）
-    int *Data;  // 指向双亲表示数组的指针
+    int Size;  // 集合容量（最大元素个数）
+    int *Data; // 指向双亲表示数组的指针
 } UFSet;
 
 // ---- 创建与销毁 ----
