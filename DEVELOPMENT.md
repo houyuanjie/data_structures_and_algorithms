@@ -23,7 +23,7 @@
 | 算法核心 | C | C11 (`-std=c11`) |
 | 构建/测试/演示 | Ruby | ≥ 3.3 (内置 Prism) |
 | 构建系统 | Rake | `gem install rake` |
-| C 编译器 | GCC | (或兼容编译器) |
+| C 编译器 | Clang | (或兼容编译器) |
 | C 测试框架 | 自定义 `TEST` 宏 | 定义于 `bin/test_*.c` |
 | Ruby 测试框架 | Minitest | RubyGems 内置 |
 

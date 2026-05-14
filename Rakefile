@@ -8,7 +8,7 @@ require 'rake/clean'
 # ========================================
 
 # 允许通过环境变量覆盖编译器，提高跨平台兼容性
-CC      = ENV.fetch('CC', 'gcc')
+CC      = ENV.fetch('CC', 'clang')
 AR      = ENV.fetch('AR', 'ar')
 
 # 编译选项：启用所有警告、将警告视为错误、使用 C11 标准、
@@ -55,7 +55,7 @@ BINS = BIN_SRCS.pathmap("#{OUT_DIR}/%n")
 # 辅助函数
 # ========================================
 
-# 解析 gcc -MMD 生成的 .d 依赖文件，并动态为 Rake 任务添加头文件依赖。
+# 解析编译器 -MMD 生成的 .d 依赖文件，并动态为 Rake 任务添加头文件依赖。
 # 实现增量构建能力：当头文件变更时，自动重新编译依赖它的目标文件。
 def load_deps(dep_file, target)
   return unless File.exist?(dep_file)
