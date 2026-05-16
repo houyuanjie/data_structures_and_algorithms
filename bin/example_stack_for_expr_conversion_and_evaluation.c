@@ -341,7 +341,7 @@ char *to_postfix(Arena *arena, const char *expr)
 // 空间复杂度：O(n) —— 操作数栈的大小
 // ==========================================================================
 
-long eval_postfix(const char *postfix)
+int eval_postfix(const char *postfix)
 {
     // ====================================================================
     // 第 0 步：初始化 —— 操作数栈用于暂存中间计算结果
@@ -402,20 +402,20 @@ long eval_postfix(const char *postfix)
             Linked_Stack_Pop(&val_stack, &right);
             Linked_Stack_Pop(&val_stack, &left);
 
-            long result;
+            int result;
             switch (op)
             {
             case '+':
-                result = (long)left + (long)right;
+                result = left + right;
                 break;
             case '-':
-                result = (long)left - (long)right;
+                result = left - right;
                 break;
             case '*':
-                result = (long)left * (long)right;
+                result = left * right;
                 break;
             case '/':
-                result = (long)left / (long)right;
+                result = left / right;
                 break;
             default:
                 result = 0;
@@ -438,8 +438,8 @@ long eval_postfix(const char *postfix)
         //   然后将 scan 跳到 endptr，准备处理下一个 token。
         // ================================================================
         char *endptr;
-        long num = strtol(scan, &endptr, 10);
-        Linked_Stack_Push(&val_stack, (int)num);
+        int num = (int)strtol(scan, &endptr, 10);
+        Linked_Stack_Push(&val_stack, num);
         scan = endptr; // 跳到下一个 token 的开始位置
     }
 
@@ -455,7 +455,7 @@ long eval_postfix(const char *postfix)
     // ====================================================================
 
     Linked_List_Destroy(&val_stack);
-    return (long)result;
+    return result;
 }
 
 // ==========================================================================
@@ -511,8 +511,8 @@ int main()
     // ====================================================================
     // 第 3 步：后缀表达式的值
     // ====================================================================
-    long result = eval_postfix(postfix);
-    printf("求值结果: %ld\n", result);
+    int result = eval_postfix(postfix);
+    printf("求值结果: %d\n", result);
 
     // ====================================================================
     // 第 4 步：释放 Arena
