@@ -149,6 +149,15 @@ bool SeqList_Destroy(SeqList *seq) {
 void destroy(SeqList *s) { free(s->Data); } // 未置 NULL，未归零字段
 ```
 
+### Arena SB 宏
+
+构建字符串时使用 `arena_sb_*`（string builder）系列宏代替 `arena_da_*`（dynamic array）系列宏，以明确语义意图。
+两者底层实现等价（`#define arena_sb_append_buf arena_da_append_many`）。
+
+- `arena_sb_append_buf(a, sb, buf, n)` — 追加已知长度的字符序列
+- `arena_sb_append_cstr(a, sb, cstr)`  — 追加 C 字符串
+- `arena_sb_append_null(a, sb)`          — 末尾补 `'\0'`
+
 ---
 
 ## 注释规范

@@ -20,7 +20,7 @@
 //   - 栈 (Stack)：使用双向链表 (Linked_List) 通过 Push/Pop/Peek 操作实现
 //     LIFO（后进先出）行为。
 //   - Arena 分配器：用于构建后缀表达式字符串，通过 string builder 逐 token
-//     追加，最后统一释放。避免手动 free，同时演示 Arena 的 DA（动态数组）宏。
+//     追加，最后统一释放。避免手动 free，同时演示 Arena 的 SB（字符串构建器）宏。
 //
 // 算法：
 //   1. to_postfix：调度场算法，O(n) 时间 / O(n) 空间
@@ -56,8 +56,8 @@ static int precedence(char op)
 // --------------------------------------------------------------------------
 // Arena 字符串构建器 —— 用于逐 token 拼接后缀表达式
 //
-// 声明 char* 动态数组结构体，配合 arena_da_append_many 等宏使用。
-// items  = 动态数组首地址；count = 已填入的字符数（不含 '\0'）；
+// 声明 char* 字符串构建器结构体，配合 arena_sb_append_buf 等宏使用。
+// items  = 字符串首地址；count = 已填入的字符数（不含 '\0'）；
 // capacity = 当前容量（数组可容纳的字符数）。
 // 初始时全部字段为 0，Arena 宏会在首次追加时自动分配内存。
 // --------------------------------------------------------------------------
@@ -173,9 +173,9 @@ char *to_postfix(Arena *arena, const char *expr)
                 len = snprintf(buf, sizeof(buf), " %d", num);
             }
 
-            // arena_da_append_many: 将 buf 中 len 个字符追加到 sb 动态数组；
+            // arena_sb_append_buf: 将 buf 中 len 个字符追加到 sb 字符串构建器；
             // 容量不足时 arena 自动扩容（新容量 = max(256, 当前容量×2)）
-            arena_da_append_many(arena, &sb, buf, len);
+            arena_sb_append_buf(arena, &sb, buf, len);
 
             continue; // 已处理完操作数，继续扫描下一个字符
         }
@@ -224,7 +224,7 @@ char *to_postfix(Arena *arena, const char *expr)
                 Linked_Stack_Pop(&op_stack, &top);
                 char buf[4];
                 int len = snprintf(buf, sizeof(buf), " %c", (char)top);
-                arena_da_append_many(arena, &sb, buf, len);
+                arena_sb_append_buf(arena, &sb, buf, len);
             }
             // 弹出并丢弃栈顶的 '('
             if (!Linked_List_IsEmpty(&op_stack))
@@ -277,7 +277,7 @@ char *to_postfix(Arena *arena, const char *expr)
             Linked_Stack_Pop(&op_stack, &top);
             char buf[4];
             int len = snprintf(buf, sizeof(buf), " %c", (char)top);
-            arena_da_append_many(arena, &sb, buf, len);
+            arena_sb_append_buf(arena, &sb, buf, len);
         }
 
         // 当前运算符入栈
@@ -297,7 +297,7 @@ char *to_postfix(Arena *arena, const char *expr)
         Linked_Stack_Pop(&op_stack, &top);
         char buf[4];
         int len = snprintf(buf, sizeof(buf), " %c", (char)top);
-        arena_da_append_many(arena, &sb, buf, len);
+        arena_sb_append_buf(arena, &sb, buf, len);
     }
 
     // ====================================================================
@@ -487,7 +487,7 @@ int main()
     //
     // Arena = {0} 将 begin 和 end 指针置为 NULL（零值初始化），
     // 表示此刻 Arena 尚未分配任何 Region。
-    // 首次调用 arena_alloc 或 arena_da_append_many 时，
+    // 首次调用 arena_alloc 或 arena_sb_append_buf 时，
     // Arena 内部会自动调用 new_region 分配第一个 8KB Region。
     //
     // 无需手动 Initialize / Destroy，Arena 是纯值类型。
