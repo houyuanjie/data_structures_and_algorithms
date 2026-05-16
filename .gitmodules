@@ -1,0 +1,3 @@
+[submodule "vendor/arena"]
+	path = vendor/arena
+	url = https://github.com/tsoding/arena.git

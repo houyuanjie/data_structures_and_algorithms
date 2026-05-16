@@ -26,6 +26,7 @@
 .
 ├── lib/                 # [C] 数据结构实现 (头文件 + 源文件)
 ├── bin/                 # [C] 测试与示例入口
+├── vendor/              # 第三方库 (如 arena 分配器)
 ├── out/                 # 构建输出 (gitignore)
 ├── Rakefile             # 构建脚本 (谨慎修改)
 ├── .clang-format        # C 格式化配置 (只读)
@@ -59,7 +60,8 @@ rake clean                    # 删除 out/
 | `-Wall -Wextra -Werror` | 所有警告视为错误 |
 | `-g -O0` | 调试信息，关闭优化 |
 | `-MMD` | 自动生成头文件依赖 |
-| `-Ilib` | 头文件搜索路径 |
+| `-Ilib` | lib/ 头文件搜索路径 |
+| `-Ivendor/arena` | vendor/arena 头文件搜索路径 |
 
 构建流程：`lib/*.c` → `out/*.o` → `out/libdsa.a`；`bin/*.c` → `out/<name>.bin.o` → 链接静态库 → `out/<name>`。
 
@@ -183,7 +185,20 @@ void destroy(SeqList *s) { free(s->Data); } // 未置 NULL，未归零字段
 
 ### 函数注释 (必须)
 
-每个对外函数前说明：功能、参数约束、返回值含义、副作用。
+每个对外函数前需包含块注释，说明功能、参数约束、返回值含义、副作用。
+
+使用 **Doxygen 风格**标注参数和返回值（`@param` / `@return`）。类型信息由 C 函数签名表达，**不在标签中重复**。
+
+```c
+// ✅ Good
+// @param list  被操作的双向链表指针，不能为 NULL 或未初始化
+// @param elem  要插入的新元素值
+// @return      true 表示插入成功；false 表示参数无效或内存不足
+
+// ❌ Bad — YARD 风格 [Type] 标注
+// @param list  [Linked_List *] 被操作的双向链表
+// @return      [bool] 成功/失败
+```
 
 ### 核心算法注释 (必须)
 
@@ -226,6 +241,7 @@ int index = ord - 1;
 | 5 | 为"优化"牺牲可读性 | 教学项目：清晰 > 性能 |
 | 6 | 使用非标准 C 扩展 | 仅用 C11 标准特性 |
 | 7 | 删除或缩短教学性注释 | 注释即教材，必须保留 |
+| 8 | `@param`/`@return` 中使用 `[Type]` 标注 | Doxygen 风格：类型由签名表达，不在标签中重复 |
 
 ---
 
@@ -236,7 +252,7 @@ int index = ord - 1;
 | 顺序表 | `lib/seq_list.h/.c` | 动态数组线性表，支持 CRUD + 自动扩容 |
 | 双向链表 | `lib/linked.h/.c` | 支持按位序 CRUD + 栈 (LIFO) + 队列 (FIFO) |
 | 并查集 | `lib/uf_set.h/.c` | 双亲表示法 Union-Find |
-| 表达式求值 | `bin/example_stack_for_expr_conversion_and_evaluation.c` | 调度场算法 + 后缀求值 |
+| 表达式求值 | `bin/example_stack_for_expr_conversion_and_evaluation.c` | 调度场算法 + 后缀求值，使用 Arena 分配器管理输出字符串 |
 
 ---
 

@@ -1,8 +1,10 @@
 #include "linked.h"
 
+#define ARENA_IMPLEMENTATION
+#include "arena.h"
+
 #include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 // ==========================================================================
@@ -17,6 +19,8 @@
 //     唯一值即为结果。无需括号，无需优先级表。
 //   - 栈 (Stack)：使用双向链表 (Linked_List) 通过 Push/Pop/Peek 操作实现
 //     LIFO（后进先出）行为。
+//   - Arena 分配器：用于构建后缀表达式字符串，通过 string builder 逐 token
+//     追加，最后统一释放。避免手动 free，同时演示 Arena 的 DA（动态数组）宏。
 //
 // 算法：
 //   1. to_postfix：调度场算法，O(n) 时间 / O(n) 空间
@@ -49,177 +53,268 @@ static int precedence(char op)
     }
 }
 
+// --------------------------------------------------------------------------
+// Arena 字符串构建器 —— 用于逐 token 拼接后缀表达式
+//
+// 声明 char* 动态数组结构体，配合 arena_da_append_many 等宏使用。
+// items  = 动态数组首地址；count = 已填入的字符数（不含 '\0'）；
+// capacity = 当前容量（数组可容纳的字符数）。
+// 初始时全部字段为 0，Arena 宏会在首次追加时自动分配内存。
+// --------------------------------------------------------------------------
+
+typedef struct
+{
+    char *items;
+    size_t count;
+    size_t capacity;
+} String_Builder;
+
 // ==========================================================================
 // to_postfix —— 调度场算法（Shunting Yard Algorithm）
 //
 // 将中缀表达式转换为后缀表达式（逆波兰表示法，RPN）。
-// 使用双向链表 (Linked_List) 作为运算符栈。
+// 使用双向链表 (Linked_List) 作为运算符栈，
+// 使用 Arena string builder 构建输出字符串。
 //
 // 算法步骤：
 //   第 1 步：遍历输入字符串，识别 token（操作数 / 运算符 / 括号）
 //   第 2 步：按调度场算法处理每个 token：
-//     (a) 操作数 → 直接输出到结果串
+//     (a) 操作数 → 直接追加到 string builder
 //     (b) '('    → 直接入栈
 //     (c) ')'    → 弹栈输出直到遇到 '('，丢弃括号对
 //     (d) 运算符 → 弹栈中所有优先级 >= 当前运算符的运算符并输出，
 //                  然后将当前运算符入栈
 //   第 3 步：输入结束后，将栈中剩余运算符全部弹栈输出
 //
-// @param expr   [const char *] 中缀算术表达式，支持多位数操作数
-// @return       [char *] 动态分配的后缀表达式字符串，调用者负责释放
-//               NULL 表示内存分配失败
+// @param arena  用于分配输出字符串的 Arena 指针
+// @param expr   中缀算术表达式字符串，支持多位数操作数
+// @return       Arena 分配的后缀表达式 C 字符串（'\0' 结尾），
+//               失败返回 NULL。调用者无需单独 free，由 Arena 统一释放。
 //
 // 时间复杂度：O(n) —— 每个 token 均入栈、出栈各至多一次
 // 空间复杂度：O(n) —— 运算符栈和输出字符串的大小与输入规模成线性关系
 // ==========================================================================
 
-char *to_postfix(const char *expr)
+char *to_postfix(Arena *arena, const char *expr)
 {
-    // ---- 第 0 步：初始化 ----
+    // ====================================================================
+    // 第 0 步：初始化 —— 准备好运算符栈和后缀字符串构建器
+    // ====================================================================
 
-    // 运算符栈（栈顶 ≡ 表头）
+    // op_stack: 栈顶 = 表头 (Head)，入栈出栈均为 O(1)
     Linked_List op_stack;
     Linked_List_Initialize(&op_stack);
 
-    // 输出缓冲区（后缀表达式字符串）
-    size_t out_cap = 4096;
-    char *postfix = (char *)malloc(out_cap);
-    if (postfix == NULL)
+    // sb: arena 托管的后缀字符串构建器
+    // {0} 将所有字段初始化为 0/NULL，首次 append 时 arena 自动分配内存
+    String_Builder sb = {0};
+
+    // first_token: 标记是否是第一个输出 token
+    // true 时直接输出数字，false 时先输出一个空格分隔符再输出数字
+    bool first_token = true;
+
+    // ====================================================================
+    // 第 1 步：逐字符扫描中缀表达式，按字符类型分支处理
+    //
+    // 分支结构：
+    //   (A) 空白字符 → 跳过
+    //   (B) 数字     → 读取完整多位数，追加到 sb
+    //   (C) '('      → 直接入栈
+    //   (D) ')'      → 弹栈输出直到遇到 '('
+    //   (E) 运算符   → 弹栈中优先级 >= 自己的运算符，然后自己入栈
+    // ====================================================================
+
+    int pos = 0; // pos: 当前扫描位置
+    while (expr[pos] != '\0')
     {
-        printf("<to_postfix> 内存分配失败\n");
-        Linked_List_Destroy(&op_stack);
-        return NULL;
-    }
-    char *out = postfix;
-    char *out_end = postfix + out_cap;
-    bool first_token = true; // 首个 token 不加前导空格
+        char ch = expr[pos]; // 当前字符
 
-    // ---- 第 1 步：扫描输入，按调度场算法处理 ----
-
-    int i = 0;
-    while (expr[i] != '\0')
-    {
-        char c = expr[i];
-
-        // 跳过空白字符
-        if (isspace((unsigned char)c))
+        // ================================================================
+        // 分支 (A)：空白字符 → 跳过
+        // isspace 是 <ctype.h> 标准函数，检查字符是否为空格/制表/换行等。
+        // 将 char 转为 unsigned char 是为了避免负值传入导致的未定义行为。
+        // ================================================================
+        if (isspace((unsigned char)ch))
         {
-            i++;
-            continue;
+            pos++;
+            continue; // 跳过空白，处理下一个字符
         }
 
-        if (isdigit((unsigned char)c))
+        // ================================================================
+        // 分支 (B)：数字 → 读取完整操作数，追加到输出
+        //
+        // 数字可能是多位数（如 15、123），需要一个内层循环将其完整读出。
+        // isdigit 是 <ctype.h> 标准函数，判断字符是否为 '0'~'9'。
+        // 读取结束时 pos 已指向操作数之后第一个非数字字符，
+        // 外层循环的下次迭代将直接处理它。
+        // ================================================================
+        if (isdigit((unsigned char)ch))
         {
-            // 操作数：读取连续数字（支持多位数）
-            int num = 0;
-            while (isdigit((unsigned char)expr[i]))
+            int num = 0; // 累加解析出的数值
+            while (isdigit((unsigned char)expr[pos]))
             {
-                num = num * 10 + (expr[i] - '0');
-                i++;
+                num = num * 10 + (expr[pos] - '0');
+                pos++;
             }
-            // 此时 i 已指向非数字字符，无需额外 i++
 
-            int n;
+            // 将操作数的字符串表示写入临时缓冲区
+            char buf[32];
+            int len;
             if (first_token)
             {
-                n = snprintf(out, out_end - out, "%d", num);
+                // 第一个 token 前不加空格
+                // snprintf: 将格式化内容写入 buf，返回实际写入的字符数(不含 '\0')
+                len = snprintf(buf, sizeof(buf), "%d", num);
                 first_token = false;
             }
             else
             {
-                n = snprintf(out, out_end - out, " %d", num);
+                // 后续 token 前添加一个空格分隔符
+                len = snprintf(buf, sizeof(buf), " %d", num);
             }
-            out += n;
+
+            // arena_da_append_many: 将 buf 中 len 个字符追加到 sb 动态数组；
+            // 容量不足时 arena 自动扩容（新容量 = max(256, 当前容量×2)）
+            arena_da_append_many(arena, &sb, buf, len);
+
+            continue; // 已处理完操作数，继续扫描下一个字符
         }
-        else
+
+        // 执行到这里说明 ch 不是空白也不是数字，必然是单字符 token
+        // 即 '('、')'、'+'、'-'、'*'、'/' 之一。
+        // 先前进 pos 越过当前字符。
+        char token = ch;
+        pos++;
+
+        // ================================================================
+        // 分支 (C)：'(' → 无条件入栈
+        //
+        // '(' 是右括号 ')' 弹栈的边界标记 —— 弹栈时一遇到 '(' 就停止。
+        // ================================================================
+        if (token == '(')
         {
-            // 单字符 token：运算符或括号
-            char token = c;
-            i++;
-
-            if (token == '(')
-            {
-                // '(' 总是直接入栈
-                // 作为右括号弹栈的边界标记
-                Linked_Stack_Push(&op_stack, (int)'(');
-            }
-            else if (token == ')')
-            {
-                // ')' 连续弹栈直到遇到 '(' 并丢弃它
-                //
-                //   [栈]  (  op1  op2
-                //                ↑ 弹出 op2、op1 输出，丢弃 '('
-                int top;
-                while (!Linked_List_IsEmpty(&op_stack))
-                {
-                    Linked_Stack_Peek(&op_stack, &top);
-                    if (top == '(')
-                    {
-                        break;
-                    }
-                    Linked_Stack_Pop(&op_stack, &top);
-                    int n =
-                        snprintf(out, out_end - out, " %c", (char)top);
-                    out += n;
-                }
-                // 弹出并丢弃 '('
-                if (!Linked_List_IsEmpty(&op_stack))
-                {
-                    Linked_Stack_Pop(&op_stack, &top);
-                }
-            }
-            else
-            {
-                // 二元运算符：+ - * /
-                int prec = precedence(token);
-
-                // 弹栈条件（满足任一即停止）：
-                //   (a) 栈空
-                //   (b) 栈顶为 '('
-                //   (c) 栈顶运算符优先级 < 当前运算符优先级
-                //
-                //   while (栈非空 && 栈顶 != '(' && 栈顶优先级 >= 当前优先级)
-                //       弹栈输出
-                //
-                //   先以 IsEmpty 检查栈空，避免 Peek 在空栈时打印诊断消息
-                int top;
-                while (!Linked_List_IsEmpty(&op_stack))
-                {
-                    Linked_Stack_Peek(&op_stack, &top);
-                    if (top == '(')
-                    {
-                        break;
-                    }
-                    if (precedence((char)top) < prec)
-                    {
-                        break;
-                    }
-                    Linked_Stack_Pop(&op_stack, &top);
-                    int n =
-                        snprintf(out, out_end - out, " %c", (char)top);
-                    out += n;
-                }
-
-                // 当前运算符入栈
-                Linked_Stack_Push(&op_stack, (int)token);
-            }
+            Linked_Stack_Push(&op_stack, (int)'(');
+            continue;
         }
+
+        // ================================================================
+        // 分支 (D)：')' → 弹栈输出，直到遇到 '(' 并丢弃该 '('
+        //
+        // 括号内的所有运算符按调度场规则已在栈中排好序，
+        // 此处依次弹出输出即可还原括号内的运算顺序。
+        //
+        // 示例（括号内的表达式 `7-(1+1)`）：
+        //   输入 '(' 后栈:  [  (  -  (  ]
+        //   输入 ')' 后弹栈: 输出 '+' 、丢弃栈中 '('  → 栈:  [  (  -  ]
+        //
+        //   [栈]  (  op1  op2     ← 栈顶在表头
+        //               ↑ 逐个弹出 op2、op1 输出，丢弃 '('
+        // ================================================================
+        if (token == ')')
+        {
+            int top; // 栈顶运算符（ASCII 字符码）
+            while (!Linked_List_IsEmpty(&op_stack))
+            {
+                Linked_Stack_Peek(&op_stack, &top);
+                if (top == '(')
+                {
+                    break; // 遇到 '('，停止弹栈输出
+                }
+                // 弹出栈顶运算符并追加到输出
+                Linked_Stack_Pop(&op_stack, &top);
+                char buf[4];
+                int len = snprintf(buf, sizeof(buf), " %c", (char)top);
+                arena_da_append_many(arena, &sb, buf, len);
+            }
+            // 弹出并丢弃栈顶的 '('
+            if (!Linked_List_IsEmpty(&op_stack))
+            {
+                Linked_Stack_Pop(&op_stack, &top);
+            }
+            continue;
+        }
+
+        // ================================================================
+        // 分支 (E)：二元运算符 (+ - * /) → 弹栈 + 入栈
+        //
+        // 调度场核心规则：确保栈中运算符按优先级从低到高（栈底→栈顶）排列。
+        //
+        // 弹栈条件（满足任一即停止弹出）：
+        //   ① 栈空            → 没有运算符可以比较
+        //   ② 栈顶为 '('      → 括号内的运算符不能跨括号弹出
+        //   ③ 栈顶优先级 < 当前优先级 → 栈顶被"保护"（低优先级的不能在高优先级之上弹出）
+        //
+        // 实现为：
+        //   while (栈非空 && 栈顶 != '(' && 栈顶优先级 >= 当前优先级)
+        //       弹栈输出
+        //   然后当前运算符入栈
+        //
+        // 优先检查 IsEmpty 而非直接 Peek，避免空栈时 Peek 打印不必要的诊断消息。
+        // ================================================================
+
+        // 当前 token 必然是运算符，计算其优先级
+        int cur_prec = precedence(token);
+
+        // 弹栈：将优先级不低于当前运算符的栈内运算符全部弹出输出
+        int top; // 栈顶运算符（ASCII 字符码）
+        while (!Linked_List_IsEmpty(&op_stack))
+        {
+            Linked_Stack_Peek(&op_stack, &top);
+
+            // 条件②：栈顶为 '(' 则停止
+            if (top == '(')
+            {
+                break;
+            }
+
+            // 条件③：栈顶优先级 < 当前优先级则停止
+            if (precedence((char)top) < cur_prec)
+            {
+                break;
+            }
+
+            // 栈顶优先级 >= 当前优先级：弹出并追加到输出
+            Linked_Stack_Pop(&op_stack, &top);
+            char buf[4];
+            int len = snprintf(buf, sizeof(buf), " %c", (char)top);
+            arena_da_append_many(arena, &sb, buf, len);
+        }
+
+        // 当前运算符入栈
+        Linked_Stack_Push(&op_stack, (int)token);
     }
 
-    // ---- 第 2 步：清空栈 ----
-    // 输入已读完，将栈中剩余运算符全部弹出
-    // 先以 IsEmpty 检查栈空，避免 Pop 在空栈时打印诊断消息
-    int top;
+    // ====================================================================
+    // 第 2 步：输入扫描完毕，将栈中剩余运算符全部弹出输出
+    //
+    // 输入中已经没有未处理 token，此时栈中剩余的是嵌套括号内或表达式
+    // 末尾处尚未来得及输出的运算符，将它们全部弹出即可。
+    // ====================================================================
+
+    int top; // 栈顶运算符
     while (!Linked_List_IsEmpty(&op_stack))
     {
         Linked_Stack_Pop(&op_stack, &top);
-        int n = snprintf(out, out_end - out, " %c", (char)top);
-        out += n;
+        char buf[4];
+        int len = snprintf(buf, sizeof(buf), " %c", (char)top);
+        arena_da_append_many(arena, &sb, buf, len);
     }
 
-    // ---- 第 3 步：清理 ----
+    // ====================================================================
+    // 第 3 步：收尾
+    //
+    // arena_sb_append_null: 在 sb 末尾追加一个 '\0'（空字符），
+    // 使 sb.items 成为合法的 C 风格 '\0' 结尾字符串，可供 printf 等使用。
+    // ====================================================================
+
+    arena_sb_append_null(arena, &sb);
+
+    // 释放运算符栈（栈结点由 malloc 分配，独立于 Arena 管理）
     Linked_List_Destroy(&op_stack);
-    return postfix;
+
+    // 返回 arena 托管的后缀表达式字符串
+    // 调用者无需单独 free，由 Arena 统一释放
+    return sb.items;
 }
 
 // ==========================================================================
@@ -239,8 +334,8 @@ char *to_postfix(const char *expr)
 // 注意：运算符弹出操作数的顺序是「先右后左」（先弹的是右操作数），
 //       这对加法和乘法无影响，但对减法和除法至关重要。
 //
-// @param postfix [const char *] 以空格分隔的后缀表达式
-// @return       [long] 计算结果
+// @param postfix 以空格分隔的后缀表达式 C 字符串（'\0' 结尾）
+// @return        计算结果
 //
 // 时间复杂度：O(n) —— 每个 token 处理一次
 // 空间复杂度：O(n) —— 操作数栈的大小
@@ -248,33 +343,61 @@ char *to_postfix(const char *expr)
 
 long eval_postfix(const char *postfix)
 {
-    // ---- 第 0 步：初始化 ----
+    // ====================================================================
+    // 第 0 步：初始化 —— 操作数栈用于暂存中间计算结果
+    // ====================================================================
+
     Linked_List val_stack;
     Linked_List_Initialize(&val_stack);
 
-    // ---- 第 1 步：扫描 token 并求值 ----
-    const char *p = postfix;
-    while (*p != '\0')
+    // ====================================================================
+    // 第 1 步：逐 token 扫描后缀表达式
+    //
+    // 后缀表达式中 token 以空格分隔，每个 token 要么是操作数（十进制数字），
+    // 要么是单字符运算符（+ - * /）。
+    //
+    // 分支结构：
+    //   (A) 空格           → 跳过
+    //   (B) 运算符 (+-*/)  → 弹出两个操作数，计算后压回栈
+    //   (C) 操作数（数字） → 转换为整数后压栈
+    //
+    // 判断 token 类型的依据：
+    //   若当前字符是运算符且后跟空格或位于结尾 → 分支 (B)
+    //   否则 → 分支 (C)
+    // ====================================================================
+
+    const char *scan = postfix; // scan: 扫描指针，指向当前待处理的字符
+    while (*scan != '\0')
     {
-        // 跳过空格
-        while (*p == ' ')
+        // 跳过前导空格
+        while (*scan == ' ')
         {
-            p++;
+            scan++;
         }
-        if (*p == '\0')
+        if (*scan == '\0')
         {
-            break;
+            break; // 字符串末尾全是空格
         }
 
-        // 判断 token 类型：
-        // 运算符为单个字符（+ - * /）且后跟空格或位于结尾
-        if (((*p) == '+' || (*p) == '-' || (*p) == '*' || (*p) == '/')
-            && (*(p + 1) == ' ' || *(p + 1) == '\0'))
+        // ================================================================
+        // 分支 (B)：遇到运算符 (+ - * /)
+        //
+        // 运算符后紧跟空格或字符串结尾时才确认为运算符 token（区别于
+        // 负号等场景，虽然本例不支持负号）。
+        //
+        // 对于减法和除法，操作数弹出的顺序至关重要：
+        //   - 先 Pop 得到的是右操作数 right  （后入栈，靠近栈顶）
+        //   - 再 Pop 得到的是左操作数 left   （先入栈，在栈中更深）
+        //   - 计算 left op right
+        // ================================================================
+        char ch = *scan;
+        bool is_operator = (ch == '+' || ch == '-' || ch == '*' || ch == '/');
+        if (is_operator && (*(scan + 1) == ' ' || *(scan + 1) == '\0'))
         {
-            // 运算符：弹出右操作数和左操作数（顺序很重要！先弹右后弹左）
-            char op = *p;
-            p++;
+            char op = ch;
+            scan++; // 前进到下一个 token
 
+            // 先弹右操作数（后入栈），再弹左操作数（先入栈）
             int right, left;
             Linked_Stack_Pop(&val_stack, &right);
             Linked_Stack_Pop(&val_stack, &left);
@@ -299,23 +422,38 @@ long eval_postfix(const char *postfix)
                 break;
             }
 
+            // 将计算结果压回栈，供后续运算使用
             Linked_Stack_Push(&val_stack, (int)result);
+
+            continue; // 继续处理下一个 token
         }
-        else
-        {
-            // 操作数：转换为整数后压栈
-            char *end;
-            long num = strtol(p, &end, 10);
-            Linked_Stack_Push(&val_stack, (int)num);
-            p = end;
-        }
+
+        // ================================================================
+        // 分支 (C)：遇到操作数 → 转换为整数后压栈
+        //
+        // strtol 是 <stdlib.h> 标准函数：
+        //   strtol(待解析字符串, &结束位置指针, 进制基数)
+        //   从 p 开始解析十进制整数，解析结束时 *endptr 指向
+        //   第一个非数字字符（此处是空格或 '\0'）。
+        //   然后将 scan 跳到 endptr，准备处理下一个 token。
+        // ================================================================
+        char *endptr;
+        long num = strtol(scan, &endptr, 10);
+        Linked_Stack_Push(&val_stack, (int)num);
+        scan = endptr; // 跳到下一个 token 的开始位置
     }
 
-    // ---- 第 2 步：弹出最终结果 ----
+    // ====================================================================
+    // 第 2 步：扫描结束，栈顶即为最终结果
+    // ====================================================================
+
     int result;
     Linked_Stack_Pop(&val_stack, &result);
 
-    // ---- 第 3 步：清理 ----
+    // ====================================================================
+    // 第 3 步：清理操作数栈
+    // ====================================================================
+
     Linked_List_Destroy(&val_stack);
     return (long)result;
 }
@@ -326,35 +464,65 @@ long eval_postfix(const char *postfix)
 // 使用示例表达式 ((15/(7-(1+1)))*3)-(2+(1+1))
 // 预期后缀：15 7 1 1 + - / 3 * 2 1 1 + + -
 // 预期结果：5
+//
+// 流程图解：
+//
+//   ┌─────────┐    to_postfix()    ┌─────────┐    eval_postfix()    ┌─────────┐
+//   │ 中缀 expr │ ─────────────────→ │ 后缀 RPN │ ──────────────────→ │  结果 5  │
+//   └─────────┘                     └─────────┘                     └─────────┘
+//                                   ↖ Arena 托管内存，一次 free()
 // ==========================================================================
 
 int main()
 {
+    // ---- 待求值的中缀表达式 ----
     const char *infix = "((15/(7-(1+1)))*3)-(2+(1+1))";
 
     printf("=======================================\n");
     printf("  表达式转换与求值（调度场算法 + 后缀求值）\n");
     printf("=======================================\n\n");
 
-    // ---- 第 1 步：中缀 → 后缀 ----
+    // ====================================================================
+    // 第 1 步：初始化 Arena 分配器
+    //
+    // Arena = {0} 将 begin 和 end 指针置为 NULL（零值初始化），
+    // 表示此刻 Arena 尚未分配任何 Region。
+    // 首次调用 arena_alloc 或 arena_da_append_many 时，
+    // Arena 内部会自动调用 new_region 分配第一个 8KB Region。
+    //
+    // 无需手动 Initialize / Destroy，Arena 是纯值类型。
+    // ====================================================================
+    Arena arena = {0};
+
     printf("中缀表达式: %s\n\n", infix);
 
-    char *postfix = to_postfix(infix);
+    // ====================================================================
+    // 第 2 步：中缀 → 后缀（调度场算法）
+    // ====================================================================
+    char *postfix = to_postfix(&arena, infix);
     if (postfix == NULL)
     {
         printf("转换失败\n");
+        arena_free(&arena);
         return 1;
     }
     printf("后缀表达式: %s\n\n", postfix);
 
-    // ---- 第 2 步：后缀求值 ----
+    // ====================================================================
+    // 第 3 步：后缀表达式的值
+    // ====================================================================
     long result = eval_postfix(postfix);
     printf("求值结果: %ld\n", result);
 
-    // ---- 清理 ----
-    free(postfix);
+    // ====================================================================
+    // 第 4 步：释放 Arena
+    //
+    // arena_free 一次性释放 postfix 字符串占用的内存以及 Arena
+    // 内部所有 Region，无需逐块 free。之后 Arena 所有字段归零。
+    // ====================================================================
+    arena_free(&arena);
 
-    // ---- 验证 ----
+    // ---- 验证预期结果 ----
     printf("\n=======================================\n");
     printf("  预期: ((15/(7-(1+1)))*3)-(2+(1+1)) = 5\n");
     if (result == 5)

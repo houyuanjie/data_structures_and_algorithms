@@ -13,7 +13,7 @@ AR      = ENV.fetch('AR', 'ar')
 
 # 编译选项：启用所有警告、将警告视为错误、使用 C11 标准、
 # 包含调试信息、关闭优化、添加头文件搜索路径
-CFLAGS  = '-Wall -Wextra -Werror -std=c11 -g -O0 -Ilib'
+CFLAGS  = '-Wall -Wextra -Werror -std=c11 -g -O0 -Ilib -Ivendor/arena'
 
 # 链接选项：允许通过环境变量传入额外的链接标志
 LDFLAGS = ENV.fetch('LDFLAGS', '')
