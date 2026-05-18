@@ -207,7 +207,7 @@ char *to_postfix(Arena *arena, const char *expr)
         if (token != '(' && token != ')' && token != '+' && token != '-' &&
             token != '*' && token != '/')
         {
-            int ord = index;  // 下标 → 位序（index 在第 204 行已递增，恰好等于 ord）
+            int ord = index;  // 下标 → 位序（index 已在上方递增，此时 index 恰好等于 ord）
             printf("<to_postfix> 非法字符 '%c'（位序 %d）\n", token, ord);
             goto cleanup;
         }
