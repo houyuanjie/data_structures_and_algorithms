@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "linked.h"
 
 #define ARENA_IMPLEMENTATION
@@ -6,6 +8,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 // ==========================================================================
 // 表达式转换与求值 —— 用栈实现中缀→后缀转换（调度场算法）和后缀表达式求值
@@ -97,6 +100,17 @@ typedef struct
 
 char *to_postfix(Arena *arena, const char *expr)
 {
+    if (arena == NULL)
+    {
+        printf("<to_postfix> arena 为 NULL\n");
+        return NULL;
+    }
+    if (expr == NULL)
+    {
+        printf("<to_postfix> expr 为 NULL\n");
+        return NULL;
+    }
+
     // ====================================================================
     // 第 0 步：初始化 —— 准备好运算符栈和后缀字符串构建器
     // ====================================================================
@@ -112,6 +126,10 @@ char *to_postfix(Arena *arena, const char *expr)
     // first_token: 标记是否是第一个输出 token
     // true 时直接输出数字，false 时先输出一个空格分隔符再输出数字
     bool first_token = true;
+
+    // result: 返回值，初始为 NULL
+    // 成功时在 cleanup 前设为 sb.items，失败时保持 NULL
+    char *result = NULL;
 
     // ====================================================================
     // 第 1 步：逐字符扫描中缀表达式，按字符类型分支处理
@@ -180,11 +198,18 @@ char *to_postfix(Arena *arena, const char *expr)
             continue; // 已处理完操作数，继续扫描下一个字符
         }
 
-        // 执行到这里说明 ch 不是空白也不是数字，必然是单字符 token
-        // 即 '('、')'、'+'、'-'、'*'、'/' 之一。
+        // 执行到这里说明 ch 不是空白也不是数字
         // 先前进 pos 越过当前字符。
         char token = ch;
         pos++;
+
+        // 非法字符检查：只允许 '(' ')' '+' '-' '*' '/' 五种运算符/括号
+        if (token != '(' && token != ')' && token != '+' && token != '-' &&
+            token != '*' && token != '/')
+        {
+            printf("<to_postfix> 非法字符 '%c'（位序 %d）\n", token, pos);
+            goto cleanup;
+        }
 
         // ================================================================
         // 分支 (C)：'(' → 无条件入栈
@@ -212,12 +237,16 @@ char *to_postfix(Arena *arena, const char *expr)
         // ================================================================
         if (token == ')')
         {
+            // 在栈中寻找匹配的 '('
+            // found_paren: 是否在栈中找到 '('
+            bool found_paren = false;
             int top; // 栈顶运算符（ASCII 字符码）
             while (!Linked_List_IsEmpty(&op_stack))
             {
                 Linked_Stack_Peek(&op_stack, &top);
                 if (top == '(')
                 {
+                    found_paren = true;
                     break; // 遇到 '('，停止弹栈输出
                 }
                 // 弹出栈顶运算符并追加到输出
@@ -226,11 +255,14 @@ char *to_postfix(Arena *arena, const char *expr)
                 int len = snprintf(buf, sizeof(buf), " %c", (char)top);
                 arena_sb_append_buf(arena, &sb, buf, len);
             }
-            // 弹出并丢弃栈顶的 '('
-            if (!Linked_List_IsEmpty(&op_stack))
+            // 若未找到 '('，说明右括号没有匹配的左括号
+            if (!found_paren)
             {
-                Linked_Stack_Pop(&op_stack, &top);
+                printf("<to_postfix> 右括号 ')' 没有匹配的左括号\n");
+                goto cleanup;
             }
+            // 弹出并丢弃栈顶的 '('
+            Linked_Stack_Pop(&op_stack, &top);
             continue;
         }
 
@@ -285,16 +317,31 @@ char *to_postfix(Arena *arena, const char *expr)
     }
 
     // ====================================================================
-    // 第 2 步：输入扫描完毕，将栈中剩余运算符全部弹出输出
+    // 第 2 步：输入扫描完毕，检查空表达式和栈中剩余 token
     //
-    // 输入中已经没有未处理 token，此时栈中剩余的是嵌套括号内或表达式
-    // 末尾处尚未来得及输出的运算符，将它们全部弹出即可。
+    // 输入中已经没有未处理 token，此时检查：
+    //   (a) 空表达式：从未输出过操作数 → 报错
+    //   (b) 栈中剩余 '(' → 未匹配的左括号，报错
+    //   (c) 栈中剩余运算符 → 正常弹出输出
     // ====================================================================
+
+    // 若第一个 token 从未被输出，说明表达式为空
+    if (first_token)
+    {
+        printf("<to_postfix> 表达式为空\n");
+        goto cleanup;
+    }
 
     int top; // 栈顶运算符
     while (!Linked_List_IsEmpty(&op_stack))
     {
         Linked_Stack_Pop(&op_stack, &top);
+        // 剩余栈中若有 '('，说明存在未匹配的左括号
+        if (top == '(')
+        {
+            printf("<to_postfix> 左括号 '(' 没有匹配的右括号\n");
+            goto cleanup;
+        }
         char buf[4];
         int len = snprintf(buf, sizeof(buf), " %c", (char)top);
         arena_sb_append_buf(arena, &sb, buf, len);
@@ -309,18 +356,23 @@ char *to_postfix(Arena *arena, const char *expr)
 
     arena_sb_append_null(arena, &sb);
 
+    result = sb.items;
+    goto cleanup;
+
+cleanup:
     // 释放运算符栈（栈结点由 malloc 分配，独立于 Arena 管理）
     Linked_List_Destroy(&op_stack);
 
     // 返回 arena 托管的后缀表达式字符串
+    // 成功时 result = sb.items，失败时 result = NULL
     // 调用者无需单独 free，由 Arena 统一释放
-    return sb.items;
+    return result;
 }
 
 // ==========================================================================
 // eval_postfix —— 后缀表达式求值
 //
-// 对后缀表达式（逆波兰表示法）求值，返回计算结果。
+// 对后缀表达式（逆波兰表示法）求值，将结果写入 *result。
 // 使用双向链表 (Linked_List) 作为操作数栈。
 //
 // 算法步骤：
@@ -329,26 +381,48 @@ char *to_postfix(Arena *arena, const char *expr)
 //     (a) 操作数 → 转换为整数后压栈
 //     (b) 运算符 → 弹出栈顶两个操作数（先弹右后弹左），
 //                  计算后压回栈
-//   第 3 步：扫描结束，栈顶即为最终结果
+//   第 3 步：扫描结束，栈中应有且仅有 1 个值，即为最终结果
 //
 // 注意：运算符弹出操作数的顺序是「先右后左」（先弹的是右操作数），
 //       这对加法和乘法无影响，但对减法和除法至关重要。
 //
-// @param postfix 以空格分隔的后缀表达式 C 字符串（'\0' 结尾）
-// @return        计算结果
+// 可检测的错误：
+//   - 表达式为空
+//   - 非法字符（非数字、非运算符、非空格）
+//   - 栈下溢（运算符缺少操作数）
+//   - 除数为零
+//   - 操作数过多（扫描结束后栈中仍有多余值）
+//
+// @param postfix   以空格分隔的后缀表达式 C 字符串（'\0' 结尾）
+// @param result    输出参数，成功时写入计算结果
+// @return          true 表示求值成功；false 表示表达式非法
 //
 // 时间复杂度：O(n) —— 每个 token 处理一次
 // 空间复杂度：O(n) —— 操作数栈的大小
 // ==========================================================================
 
-int eval_postfix(const char *postfix)
+bool eval_postfix(const char *postfix, int *result)
 {
+    if (postfix == NULL)
+    {
+        printf("<eval_postfix> postfix 为 NULL\n");
+        return false;
+    }
+    if (result == NULL)
+    {
+        printf("<eval_postfix> result 为 NULL\n");
+        return false;
+    }
+
     // ====================================================================
     // 第 0 步：初始化 —— 操作数栈用于暂存中间计算结果
     // ====================================================================
 
     Linked_List val_stack;
     Linked_List_Initialize(&val_stack);
+
+    // ret: 函数返回值，初始为 false（失败），成功时设为 true
+    bool ret = false;
 
     // ====================================================================
     // 第 1 步：逐 token 扫描后缀表达式
@@ -399,31 +473,45 @@ int eval_postfix(const char *postfix)
 
             // 先弹右操作数（后入栈），再弹左操作数（先入栈）
             int right, left;
-            Linked_Stack_Pop(&val_stack, &right);
-            Linked_Stack_Pop(&val_stack, &left);
+            // Linked_Stack_Pop 在栈空时返回 false
+            if (!Linked_Stack_Pop(&val_stack, &right))
+            {
+                printf("<eval_postfix> 运算符 '%c' 缺少操作数\n", op);
+                goto cleanup;
+            }
+            if (!Linked_Stack_Pop(&val_stack, &left))
+            {
+                printf("<eval_postfix> 运算符 '%c' 缺少操作数\n", op);
+                goto cleanup;
+            }
 
-            int result;
+            int value;
             switch (op)
             {
             case '+':
-                result = left + right;
+                value = left + right;
                 break;
             case '-':
-                result = left - right;
+                value = left - right;
                 break;
             case '*':
-                result = left * right;
+                value = left * right;
                 break;
             case '/':
-                result = left / right;
+                if (right == 0)
+                {
+                    printf("<eval_postfix> 除数为零\n");
+                    goto cleanup;
+                }
+                value = left / right;
                 break;
             default:
-                result = 0;
+                value = 0;
                 break;
             }
 
             // 将计算结果压回栈，供后续运算使用
-            Linked_Stack_Push(&val_stack, (int)result);
+            Linked_Stack_Push(&val_stack, value);
 
             continue; // 继续处理下一个 token
         }
@@ -437,6 +525,12 @@ int eval_postfix(const char *postfix)
         //   第一个非数字字符（此处是空格或 '\0'）。
         //   然后将 scan 跳到 endptr，准备处理下一个 token。
         // ================================================================
+        if (!isdigit((unsigned char)ch))
+        {
+            printf("<eval_postfix> 非法字符 '%c'\n", ch);
+            goto cleanup;
+        }
+
         char *endptr;
         int num = (int)strtol(scan, &endptr, 10);
         Linked_Stack_Push(&val_stack, num);
@@ -444,18 +538,32 @@ int eval_postfix(const char *postfix)
     }
 
     // ====================================================================
-    // 第 2 步：扫描结束，栈顶即为最终结果
+    // 第 2 步：扫描结束，栈中应有且仅有 1 个值，即为最终结果
     // ====================================================================
 
-    int result;
-    Linked_Stack_Pop(&val_stack, &result);
+    int value;
+    if (!Linked_Stack_Pop(&val_stack, &value))
+    {
+        printf("<eval_postfix> 表达式为空\n");
+        goto cleanup;
+    }
+    // 栈中不应有多余值（若仍有元素，说明操作数过多）
+    if (!Linked_List_IsEmpty(&val_stack))
+    {
+        printf("<eval_postfix> 操作数过多\n");
+        goto cleanup;
+    }
 
+    *result = value;
+    ret = true;
+
+cleanup:
     // ====================================================================
     // 第 3 步：清理操作数栈
     // ====================================================================
 
     Linked_List_Destroy(&val_stack);
-    return result;
+    return ret;
 }
 
 // ==========================================================================
@@ -465,6 +573,10 @@ int eval_postfix(const char *postfix)
 // 预期后缀：15 7 1 1 + - / 3 * 2 1 1 + + -
 // 预期结果：5
 //
+// 用法：
+//   ./out/example_stack_for_expr_conversion_and_evaluation        默认：仅主表达式
+//   ./out/example_stack_for_expr_conversion_and_evaluation -t     同时测试错误处理
+//
 // 流程图解：
 //
 //   ┌─────────┐    to_postfix()    ┌─────────┐    eval_postfix()    ┌─────────┐
@@ -473,8 +585,142 @@ int eval_postfix(const char *postfix)
 //                                   ↖ Arena 托管内存，一次 free()
 // ==========================================================================
 
-int main()
+// ==========================================================================
+// test_errors —— 错误处理健壮性测试
+//
+// 测试 to_postfix 和 eval_postfix 对各种非法输入的错误检测能力。
+// 每个测试用例调用被测函数并检查其返回值：
+//   - to_postfix 应返回 NULL 表示检测到错误
+//   - eval_postfix 应返回 false 表示检测到错误
+// 被测函数自身会通过 printf 输出诊断消息，此处仅验证返回值。
+//
+// @param arena  用于 to_postfix 内存分配的 Arena 指针
+// @return       0 表示全部测试通过，非 0 表示有测试失败（失败计数）
+// ==========================================================================
+
+static int test_errors(Arena *arena)
 {
+    int err_count = 0; // 错误测试中自身未通过的计数
+    int pass_count = 0;
+
+    printf("\n=======================================\n");
+    printf("  错误处理健壮性测试\n");
+    printf("=======================================\n");
+
+    // ----------------------------------------------------------------
+    // to_postfix 错误检测
+    //
+    // 以下输入均为非法中缀表达式，to_postfix 应返回 NULL。
+    // ----------------------------------------------------------------
+    printf("\n── to_postfix 错误检测 ──\n\n");
+
+    // 用于记录单次测试结果的宏
+#define CHECK_TP(expr_input, desc)                                             \
+    do                                                                         \
+    {                                                                          \
+        printf("  %-35s ", desc);                                              \
+        char *pfx = to_postfix(arena, expr_input);                             \
+        if (pfx == NULL)                                                       \
+        {                                                                      \
+            printf("✓ 正确拒绝\n");                                            \
+            pass_count++;                                                      \
+        }                                                                      \
+        else                                                                   \
+        {                                                                      \
+            printf("✗ 应返回 NULL，实际: \"%s\"\n", pfx);                      \
+            err_count++;                                                       \
+        }                                                                      \
+    } while (0)
+
+    // to_postfix 错误用例
+    CHECK_TP("1+a", "非法字符 'a'");
+    CHECK_TP("", "空字符串");
+    CHECK_TP("   ", "全空格");
+    CHECK_TP("(1+2", "未匹配左括号 '('");
+    CHECK_TP("1+2)", "未匹配右括号 ')'");
+    CHECK_TP("1@2", "非法字符 '@'");
+
+#undef CHECK_TP
+
+    // ----------------------------------------------------------------
+    // eval_postfix 错误检测
+    //
+    // 以下输入均为非法后缀表达式，eval_postfix 应返回 false。
+    // ----------------------------------------------------------------
+    printf("\n── eval_postfix 错误检测 ──\n\n");
+
+#define CHECK_EP(postfix_input, desc)                                          \
+    do                                                                         \
+    {                                                                          \
+        printf("  %-35s ", desc);                                              \
+        int val;                                                               \
+        if (!eval_postfix(postfix_input, &val))                                \
+        {                                                                      \
+            printf("✓ 正确拒绝\n");                                            \
+            pass_count++;                                                      \
+        }                                                                      \
+        else                                                                   \
+        {                                                                      \
+            printf("✗ 应返回 false，实际结果: %d\n", val);                     \
+            err_count++;                                                       \
+        }                                                                      \
+    } while (0)
+
+    // eval_postfix 错误用例
+    CHECK_EP("", "空字符串");
+    CHECK_EP("a", "非法字符 'a'");
+    CHECK_EP("+", "栈下溢（运算符无操作数）");
+    CHECK_EP("1 0 /", "除数为零");
+    CHECK_EP("1 2 3 +", "操作数过多");
+
+    // 可检测：NULL 参数（无诊断消息输出，以避免触发 printf 中的 NULL
+    // 格式化未定义行为）
+    {
+        printf("  %-35s ", "result 为 NULL");
+        if (!eval_postfix("1", NULL))
+        {
+            printf("✓ 正确拒绝\n");
+            pass_count++;
+        }
+        else
+        {
+            printf("✗ 应返回 false\n");
+            err_count++;
+        }
+    }
+
+#undef CHECK_EP
+
+    // ---- 测试汇总 ----
+    printf("\n───────────────────────────────────────\n");
+    printf("  错误测试结果: %d 通过, %d 失败\n", pass_count, err_count);
+    printf("───────────────────────────────────────\n");
+
+    return err_count;
+}
+
+int main(int argc, char *argv[])
+{
+    // 使用 getopt 解析命令行参数
+    // -t: 启用错误处理健壮性测试
+    bool do_test = false;
+    int opt;
+    while ((opt = getopt(argc, argv, "t")) != -1)
+    {
+        switch (opt)
+        {
+        case 't':
+            do_test = true;
+            break;
+        default:
+            printf("用法: %s [-t]\n", argv[0]);
+            return 1;
+        }
+    }
+
+    // ret: 返回值，默认为 1（失败），成功时改为 0
+    int ret = 1;
+
     // ---- 待求值的中缀表达式 ----
     const char *infix = "((15/(7-(1+1)))*3)-(2+(1+1))";
 
@@ -503,17 +749,47 @@ int main()
     if (postfix == NULL)
     {
         printf("转换失败\n");
-        arena_free(&arena);
-        return 1;
+        goto cleanup;
     }
     printf("后缀表达式: %s\n\n", postfix);
 
     // ====================================================================
     // 第 3 步：后缀表达式的值
     // ====================================================================
-    int result = eval_postfix(postfix);
+    int result;
+    if (!eval_postfix(postfix, &result))
+    {
+        printf("后缀求值失败\n");
+        goto cleanup;
+    }
     printf("求值结果: %d\n", result);
 
+    // ---- 验证预期结果 ----
+    printf("\n=======================================\n");
+    printf("  预期: ((15/(7-(1+1)))*3)-(2+(1+1)) = 5\n");
+    if (result == 5)
+    {
+        printf("  结果正确 ✓\n");
+        ret = 0;
+    }
+    else
+    {
+        printf("  结果错误 ✗\n");
+    }
+    printf("=======================================\n");
+
+    // ====================================================================
+    // 错误处理健壮性测试（仅在 -t 标志时启用）
+    // ====================================================================
+    if (do_test)
+    {
+        if (test_errors(&arena) != 0)
+        {
+            ret = 1;
+        }
+    }
+
+cleanup:
     // ====================================================================
     // 第 4 步：释放 Arena
     //
@@ -522,18 +798,5 @@ int main()
     // ====================================================================
     arena_free(&arena);
 
-    // ---- 验证预期结果 ----
-    printf("\n=======================================\n");
-    printf("  预期: ((15/(7-(1+1)))*3)-(2+(1+1)) = 5\n");
-    if (result == 5)
-    {
-        printf("  结果正确 ✓\n");
-    }
-    else
-    {
-        printf("  结果错误 ✗\n");
-    }
-    printf("=======================================\n");
-
-    return (result == 5) ? 0 : 1;
+    return ret;
 }
