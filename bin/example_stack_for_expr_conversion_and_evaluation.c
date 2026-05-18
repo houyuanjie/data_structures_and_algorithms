@@ -142,10 +142,10 @@ char *to_postfix(Arena *arena, const char *expr)
     //   (E) 运算符   → 弹栈中优先级 >= 自己的运算符，然后自己入栈
     // ====================================================================
 
-    int pos = 0; // pos: 当前扫描位置
-    while (expr[pos] != '\0')
+    int index = 0; // index: 当前扫描位置（0-based 数组下标）
+    while (expr[index] != '\0')
     {
-        char ch = expr[pos]; // 当前字符
+        char ch = expr[index]; // 当前字符
 
         // ================================================================
         // 分支 (A)：空白字符 → 跳过
@@ -154,7 +154,7 @@ char *to_postfix(Arena *arena, const char *expr)
         // ================================================================
         if (isspace((unsigned char)ch))
         {
-            pos++;
+            index++;
             continue; // 跳过空白，处理下一个字符
         }
 
@@ -163,16 +163,16 @@ char *to_postfix(Arena *arena, const char *expr)
         //
         // 数字可能是多位数（如 15、123），需要一个内层循环将其完整读出。
         // isdigit 是 <ctype.h> 标准函数，判断字符是否为 '0'~'9'。
-        // 读取结束时 pos 已指向操作数之后第一个非数字字符，
+        // 读取结束时 index 已指向操作数之后第一个非数字字符，
         // 外层循环的下次迭代将直接处理它。
         // ================================================================
         if (isdigit((unsigned char)ch))
         {
             int num = 0; // 累加解析出的数值
-            while (isdigit((unsigned char)expr[pos]))
+            while (isdigit((unsigned char)expr[index]))
             {
-                num = num * 10 + (expr[pos] - '0');
-                pos++;
+                num = num * 10 + (expr[index] - '0');
+                index++;
             }
 
             // 将操作数的字符串表示写入临时缓冲区
@@ -199,15 +199,16 @@ char *to_postfix(Arena *arena, const char *expr)
         }
 
         // 执行到这里说明 ch 不是空白也不是数字
-        // 先前进 pos 越过当前字符。
+        // 先前进 index 越过当前字符。
         char token = ch;
-        pos++;
+        index++;
 
         // 非法字符检查：只允许 '(' ')' '+' '-' '*' '/' 五种运算符/括号
         if (token != '(' && token != ')' && token != '+' && token != '-' &&
             token != '*' && token != '/')
         {
-            printf("<to_postfix> 非法字符 '%c'（位序 %d）\n", token, pos);
+            int ord = index;  // 下标 → 位序（index 在第 204 行已递增，恰好等于 ord）
+            printf("<to_postfix> 非法字符 '%c'（位序 %d）\n", token, ord);
             goto cleanup;
         }
 
