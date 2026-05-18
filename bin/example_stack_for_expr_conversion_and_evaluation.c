@@ -358,7 +358,6 @@ char *to_postfix(Arena *arena, const char *expr)
     arena_sb_append_null(arena, &sb);
 
     result = sb.items;
-    goto cleanup;
 
 cleanup:
     // 释放运算符栈（栈结点由 malloc 分配，独立于 Arena 管理）
